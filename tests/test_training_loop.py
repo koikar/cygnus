@@ -1,6 +1,6 @@
-"""The antifragility claim, as an executable test.
+"""The training claim, as an executable test.
 
-A novel cube zone (a black swan) must escalate to System-2 exactly once; the
+A novel cube zone (a novel case) must escalate to System-2 exactly once; the
 very next occurrence of the same situation must be a fast System-1 reflex with
 no escalation and lower cost. All episodes must still succeed.
 """

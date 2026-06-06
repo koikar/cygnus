@@ -1,7 +1,8 @@
 # ReflexOS — Build Plan
 
-Hackathon build plan for an **antifragile control layer for the SO-101 robot arm**,
-exposed as an MCP server and driven by a reasoning model with a learning loop.
+Hackathon build plan for an **AI-native training layer for the SO-101 robot arm**,
+exposed as an MCP server and driven by a reasoning agent that can teach,
+correct, and save robot workflows.
 See [README.md](./README.md) for the concept.
 
 ---
@@ -26,9 +27,10 @@ See [README.md](./README.md) for the concept.
 | Speed | 30+ Hz, local | ~1–2 s/decision, API |
 | Reasons / calls tools? | no | **yes** |
 
-Core demo uses **LLM-as-controller** (reasoning model drives the arm via MCP
-tools) → **no training required**. System-1 reflexes are recalled, validated
-tool-call sequences.
+Core demo uses **agent-as-trainer** (reasoning model drives the arm via MCP
+tools) → **no leader arm or pre-recorded dataset required** for the first proof.
+System-1 reflexes are recalled, validated tool-call sequences learned from
+successful attempts.
 
 ---
 
@@ -91,8 +93,8 @@ CLI entry points: `lerobot-find-port`, `lerobot-find-cameras`, `lerobot-calibrat
 2. Robot MCP server with **`SimBackend`** — fake arm returns synthetic frame +
    state. Full loop runs with zero hardware.
 3. Agent loop (reasoning model) wired to the robot MCP server + cognitive backend.
-4. End-to-end in sim: goal → recall (miss) → reason → recover → store → re-run →
-   recall (hit) → fast replay. **The antifragility loop works before hardware.**
+4. End-to-end in sim: goal → attempt → observe → correct → store → re-run →
+   recall (hit) → fast replay. **The agent-training loop works before hardware.**
 
 ### Phase 1 — Connect the arm (~1–3 hrs, mostly cabling) ✅ done
 > **⚠️ POWER:** Leader **5V**, Follower **12V** — wrong voltage destroys servos.
@@ -121,18 +123,24 @@ python -m reflexos.server --backend so101 \
   --transport http --host 0.0.0.0 --http-port 8000
 ```
 
-### Phase 3 — The antifragile demo
-1. Goal ("place the cube in the bin") → routine path = System-1 replay.
-2. **Inject a black swan** (move the cube somewhere novel / block the gripper).
-   Detector fires.
-3. Escalate → reasoning model recovers → record rationale + store the corrective.
-4. Re-inject → recall the fix → fast System-1 handling. Show the
-   **antifragility curve** + rationale timeline on the dashboard.
+### Phase 3 — The AI-native training demo
+1. Give the robot a new workflow ("place the cube in the bin") with no
+   pre-recorded leader-arm demonstration.
+2. The agent uses MCP tools to inspect the robot model, observe the scene, choose
+   safe motions, and attempt the workflow.
+3. When the attempt fails or the environment changes, the agent detects the
+   mismatch, reasons about the correction, and records the successful routine.
+4. Re-run the same or similar workflow → recall the learned routine → fast
+   System-1 handling. Show the **training curve**: time-to-task, intervention
+   count, repeat failures, and reasoning calls fall over episodes.
 
 ### Phase 4 — Stretch
-- **Fleet:** multiple arms share one cognitive backend → arm 1's lesson is
-  recalled by arm N. The shared memory *is* the mesh.
-- Trained **ACT** policy for smooth fast System-1 motion (replaces LLM-as-controller
+- **Cross-robot skill transfer:** multiple arms expose standard MCP tools
+  (`detect`, `move`, `grip`, `verify`) so a workflow learned on one robot becomes
+  a transferable template that can be retested and adapted on another.
+- **Synthetic-to-real correction:** compare a simulated plan with real execution,
+  then record the physical-world correction as training data.
+- Trained **ACT** policy for smooth fast System-1 motion (replaces agent-as-controller
   for routine moves; needs a Linux machine + camera for dataset recording).
 
 ---

@@ -1,6 +1,6 @@
 """``LocalBackend`` — self-contained cognition: SQLite memory + a reasoner.
 
-Runs entirely offline. This is the antifragile insurance: a flaky venue network
+Runs entirely offline. This is the local training fallback: a flaky venue network
 can never freeze the arm, because recall and deliberation work without it.
 """
 

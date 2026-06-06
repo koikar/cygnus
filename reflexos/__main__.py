@@ -1,6 +1,6 @@
 """ReflexOS CLI.
 
-    python -m reflexos demo      # run the offline antifragility demo (no hardware)
+    python -m reflexos demo      # run the offline agent-training demo (no hardware)
     python -m reflexos server    # run the robot MCP server (see reflexos.server for flags)
 """
 

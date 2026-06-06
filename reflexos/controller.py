@@ -1,16 +1,16 @@
-"""The antifragility control loop.
+"""The agent-training control loop.
 
 For each episode toward a goal:
 
 1. **Recall** a reflex for the situation. Hit → replay it (System-1, fast).
    Miss → run the fixed *habit* (the only thing a blind System-1 knows).
-2. **Detect** a black swan in the result.
-3. On a swan, **deliberate** (System-2): the reasoner perceives the scene and
-   plans a recovery; execute it.
+2. **Detect** a failed or novel outcome in the result.
+3. On a failed or novel outcome, **deliberate** (System-2): the reasoner
+   perceives the scene and plans a correction; execute it.
 4. If the recovery succeeds, **learn** it — keyed by the situation signature, so
    the *next* occurrence is a fast recall, not another escalation.
 
-The dropping escalation/cost over repeated swans is the antifragility curve.
+The dropping escalation/cost over repeated attempts is the training curve.
 """
 
 from __future__ import annotations
@@ -92,8 +92,8 @@ class Controller:
         calls = self._execute(plan)
         after = self.robot.get_observation()
 
-        swan = self.detector.check(self.goal, before, after)
-        if swan is None:
+        novelty = self.detector.check(self.goal, before, after)
+        if novelty is None:
             note = "recall hit → reflex" if mode == "reflex" else "habit succeeded"
             return EpisodeResult(
                 episode=episode,
@@ -107,7 +107,7 @@ class Controller:
                 rationale=note,
             )
 
-        # --- Black swan: escalate to System-2 -------------------------------
+        # --- Failed or novel outcome: escalate to System-2 ------------------
         decision = self.cognition.deliberate(after, self.goal)
         recovery_calls = self._execute(decision.plan)
         recovered = self.robot.get_observation()

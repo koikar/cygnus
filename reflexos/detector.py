@@ -1,4 +1,4 @@
-"""The black-swan detector.
+"""The failure and novelty detector.
 
 It watches observations for the signatures of a rare manipulation failure:
 a grasp that closed on empty air, a joint that didn't reach its target, or a

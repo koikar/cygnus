@@ -43,7 +43,7 @@ HOME = {
 }
 
 # Cube pick locations. The arm's *habit* is trained for zone "A"; "B"/"C" are
-# the novel placements that constitute black swans for a blind habit.
+# the novel placements that constitute novel cases for a blind habit.
 ZONE_POSE: dict[str, dict[str, float]] = {
     "A": pose(-30, -45, 55),
     "B": pose(0, -50, 60),

@@ -1,6 +1,6 @@
 # ReflexOS 🦢
 
-**An antifragile control layer for robot arms — robots that get *stronger* from rare failures.**
+**An AI-native training layer for robot workers — agents that make robots cheaper to teach, adapt, and redeploy.**
 
 Built for the **EuroTech × Hong Kong Talent Engage Hackathon** (Munich, June 2026) · **AI & Robotics** track.
 
@@ -8,30 +8,56 @@ Built for the **EuroTech × Hong Kong Talent Engage Hackathon** (Munich, June 20
 
 ## The idea
 
-Most autonomous robots are *fragile*: they run beautifully on the happy path and
-fail catastrophically the first time reality hands them something they've never
-seen — an object in an unexpected spot, a missed grasp, a stalled joint. Those
-rare, high-impact, unforeseen events are **black swans**.
+Training robots for new tasks is still slow, expensive, and human-dependent.
+Companies usually need human teleoperation, leader-follower demonstrations,
+simulation datasets, or repeated engineering correction to adapt a robot to each
+new workflow and environment.
 
-ReflexOS makes a robot arm **antifragile** — it doesn't just survive black swans,
-it gets *better* from them:
+ReflexOS makes robot training **agent-native**. It turns a robot arm into an MCP
+server so an AI agent can observe the robot, understand its joints and safe
+motions, test possible actions, correct failures, and save successful routines as
+reusable reflexes. The goal is to make robotics more accessible: companies should
+be able to connect existing robots and machinery to AI, instead of replacing
+assets worth millions just to enter the AI era.
 
-1. **System 1 (fast reflex):** routine motions run instantly as validated,
-   previously-learned action sequences. No reasoning, no latency.
-2. **Black-swan detector:** watches the arm's state and camera — empty gripper
-   after a close, a stalled joint, an object where nothing should be, low
-   confidence. A *rare failure* fires.
-3. **System 2 (deliberation):** a reasoning model looks at the scene, figures out
-   a recovery, and — crucially — **records *why*** it did what it did.
-4. **Compounding:** the validated recovery is stored as reusable memory. The
-   **next** time that swan appears, it's handled instantly as a System-1 reflex.
+The learning loop:
 
-The demo metric is the **antifragility curve**: recovery time and repeat-failure
-rate fall over episodes. The robot literally improves from disorder.
+1. **Expose the robot as tools:** camera, state, joints, gripper, Cartesian moves,
+   safety limits, and saved skills become MCP tools.
+2. **Give the agent a workflow:** pick, place, sort, inspect, recover, or train a
+   new routine.
+3. **Let the agent operate and evaluate:** the agent attempts the task, observes
+   success or failure, and reasons about corrections.
+4. **Save successful behavior:** validated trajectories become reusable robot
+   skills/reflexes.
+5. **Reduce adaptation cost:** the next similar workflow can run faster with less
+   human demonstration and less engineering intervention.
 
-> This dual-process loop (fast reflex ↔ slow deliberation, with a learning bridge
-> between them) is inspired by how humans reserve scarce deliberate attention for
-> novelty and risk while running everything else on habit.
+Failure recovery is the first proof mechanism: when reality changes, ReflexOS
+detects the mismatch, escalates to reasoning, records the correction, and turns a
+former failure into a repeatable reflex. The demo metric is the training curve:
+time-to-task, human interventions, and repeat failures should fall over episodes.
+
+## Why it matters
+
+Robotics is already deployed at scale, but task adaptation remains a bottleneck.
+Companies have spent millions on robot arms, industrial machines, warehouses, and
+automation lines. ReflexOS is a bridge from that existing hardware base to the AI
+era: an agent can train, adapt, and improve machines through a common MCP tool
+interface.
+
+This enables:
+
+- **AI-supervised robot training:** the agent explores, tests, corrects, and saves
+  new routines.
+- **Accessible robotics:** smaller teams can teach robots without deep robotics
+  engineering for every workflow.
+- **Existing-machine upgrades:** companies can connect current robots/machinery
+  to AI instead of replacing them.
+- **Cross-robot skill transfer:** skills become agent-readable workflows, not only
+  fragile low-level trajectories.
+- **Synthetic-to-real correction:** the agent compares simulated plans with real
+  execution and records physical-world corrections.
 
 ---
 
@@ -41,7 +67,7 @@ ReflexOS turns the robot arm into a **[Model Context Protocol](https://modelcont
 (MCP) server**: its body is exposed as a surface of **safe primitives** (perceive,
 move in joint- or task-space, grip) plus **saved skills** (validated, replayable
 tool-call sequences). Any MCP-speaking agent can then *operate* the arm the same
-way it would use any other tool — and reason, recover, and learn through a
+way it would use any other tool — and train, correct, and learn through a
 **pluggable cognitive backend**.
 
 ```
@@ -52,8 +78,8 @@ way it would use any other tool — and reason, recover, and learn through a
                                                 │  MCP
                                                 ▼
                           AGENT  +  COGNITIVE BACKEND
-                          • reasoning model (System 2) — reasons over the camera frame
-                          • memory / rationale — recall fixes, record why, learn
+                          • reasoning model — plans over the camera frame + robot schema
+                          • memory / rationale — store skills, corrections, and outcomes
 ```
 
 The boundary is deliberate: the LLM **plans** by composing vetted primitives and
@@ -69,9 +95,9 @@ is clamped to joint/workspace limits regardless of what the caller asks for.
 - **`HostedBackend`** — connects to a hosted cognitive kernel over MCP
   (durable memory, decision rationale, learned skills) for the "production" path.
 
-Swapping backends is one flag — which is also the antifragile insurance: a flaky
-venue network can never freeze the arm, because System 1 and the local backend
-keep working.
+Swapping backends is one flag. A local backend can keep training and replaying
+skills even if venue networking is unreliable; a hosted backend can add durable
+memory, rationale, fleet learning, and cross-robot skill transfer.
 
 ### One rule: the dual-process boundary is the latency boundary
 
@@ -93,10 +119,10 @@ writes** are allowed to be slow.
 - **⚠️ Power:** Leader = **5V**, Follower = **12V**. Wrong voltage permanently
   damages the servos — always verify before powering on.
 
-No model training is required for the core demo: the reasoning model drives the
-arm via the MCP tools, and System-1 "reflexes" are recalled tool-call sequences.
-(Training a fast policy like ACT/SmolVLA is an optional upgrade for smoother
-motion.)
+No robot-policy training is required for the core demo: the reasoning model
+trains the workflow by operating the arm through MCP tools, and fast "reflexes"
+are recalled tool-call sequences. Training a fast policy like ACT/SmolVLA is an
+optional upgrade once enough successful trajectories have been collected.
 
 ---
 
@@ -109,7 +135,7 @@ uv pip install 'lerobot[feetech]' mcp openai
 
 # brew install ffmpeg   # macOS, if not already present
 
-# Try the whole antifragility loop in simulation — no hardware, no API key:
+# Try the agent-training loop in simulation — no hardware, no API key:
 python -m reflexos demo
 ```
 
@@ -120,10 +146,11 @@ See **[PLAN.md](./PLAN.md)** for the full build plan and phases.
 ## Running the robot
 
 The robot's body is exposed as an **MCP server** (`reflexos.server`). A reasoning
-agent (Codex, Claude, or a hosted tedi) connects over MCP and operates the arm by
-composing these primitives and recalling saved skills. Safety limits are enforced
-on every motion regardless of the caller, and actuation tools are annotated as
-physical-world/destructive actions so compatible clients can gate them.
+agent (Codex, Claude, or a hosted tedi) connects over MCP and trains/operates the
+arm by composing primitives, evaluating outcomes, and recalling saved skills.
+Safety limits are enforced on every motion regardless of the caller, and
+actuation tools are annotated as physical-world/destructive actions so compatible
+clients can gate them.
 
 **Perception** — see the body and the scene:
 
@@ -213,8 +240,9 @@ Early learning-phase probes are archived under `skills/_archive/`.
 
 **You only need the follower** (the executor — the arm with the gripper). The
 leader is a hand-puppet for teleoperation and for recording ACT/SmolVLA training
-demos; ReflexOS drives the follower directly via the MCP tools and trains nothing,
-so the leader is unused. One arm, one 12V supply, one USB-C — no 5V/12V mix-up.
+demos. ReflexOS does not require the leader for the core agent-training loop: the
+AI agent drives the follower directly through MCP tools, tests workflows, and
+saves successful routines. One arm, one 12V supply, one USB-C — no 5V/12V mix-up.
 
 Validate the two USB devices separately first:
 
@@ -378,12 +406,12 @@ can be whatever language it already is.
 - **Skills library** including 7 kinesthetically-taught poses (`paper_pos_1`..`6`
   + `home`), `grab`/`release`, and demo routines — validated to land within
   ~1° of target on replay.
-- Self-contained `LocalBackend` cognition + the **antifragility loop** end-to-end
+- Self-contained `LocalBackend` cognition + the **agent-training loop** end-to-end
   in sim (`python -m reflexos demo`), with a passing test suite proving novel
-  failures escalate once then become fast reflexes.
+  failures escalate once, get corrected, and become fast reflexes.
 
 **Next:** wire the hosted (tedi) cognitive path end-to-end on the real arm;
-antifragility dashboard.
+training dashboard, cross-robot skill transfer, and synthetic-to-real correction.
 
 ## License
 

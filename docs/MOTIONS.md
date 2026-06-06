@@ -310,12 +310,12 @@ only `align` depends on where the target is.
 | `place(drop)` | `move_ee_to(drop)` + `open` | ✅ |
 | `pick(target)` | `survey → align → descend_grasp → lift` | composes the above |
 | `present` | raise the held object toward the scene cam | ✅ |
-| `recover` | back off + re-`survey` after a failed grasp (black-swan response) | ✅ |
+| `recover` | back off + re-`survey` after a failed grasp (agent correction response) | ✅ |
 
 A pick = `survey → align → descend_grasp → lift → place`. Move the object and only
 `align` re-runs; everything else replays as fast one-call skills. When `descend_grasp`
-comes up empty (gripper closed, nothing held) that's the **black swan** → `recover`
-→ re-`align` → re-learn. That capture/replay/re-learn loop is the antifragility story.
+comes up empty (gripper closed, nothing held) that's the **novel case** → `recover`
+→ re-`align` → re-learn. That capture/replay/re-learn loop is the training story.
 
 ## Adaptive self-correcting grab (live-validated 2026-06-06)
 

@@ -19,4 +19,4 @@ Useful as a liveliness/navigation check. It is not exactly closed-loop; expect s
 
 ## Caveats
 
-Open-loop replay: valid only while the target is in the recorded position. If the object has moved, replay will miss the grasp — re-teach the skill (the black-swan → re-learn loop that makes the system antifragile).
+Open-loop replay: valid only while the target is in the recorded position. If the object has moved, replay may miss the grasp — use the agent-training loop to correct and save an updated routine.

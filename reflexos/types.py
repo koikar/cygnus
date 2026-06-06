@@ -56,7 +56,7 @@ class Decision:
 class Corrective:
     """A validated recovery stored in memory, keyed by a situation signature.
 
-    Once stored, recalling it turns a former black swan into a System-1 reflex.
+    Once stored, recalling it turns a former novel case into a System-1 reflex.
     """
 
     signature: str

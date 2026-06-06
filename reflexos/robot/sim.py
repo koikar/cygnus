@@ -1,13 +1,13 @@
 """A dependency-free simulator of the SO-101 pick-and-place world.
 
-It models exactly enough physics to exercise the antifragility loop with no
+It models exactly enough physics to exercise the agent-training loop with no
 hardware and no network:
 
 * The arm has joints (in ``"<joint>.pos"`` form) that snap to commanded targets.
 * A cube sits in one zone (A/B/C). The arm's *habit* is trained for zone A.
 * ``grip("close")`` only grasps if the gripper is actually *at* the cube's zone.
   Closing on empty air (because a blind habit went to the wrong zone) is the
-  black swan the detector catches.
+  novel case the detector catches.
 * ``grip("open")`` over the bin places the cube → task success.
 """
 

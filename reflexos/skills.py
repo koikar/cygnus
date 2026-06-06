@@ -7,9 +7,9 @@ the grip actions, so a whole multi-step action replays as a single call.
 
 Skills are **open-loop**: a replay reproduces the recorded joint distances, so it
 only succeeds while the target is in the position it was taught for. When the
-world changes (the cube moved), replay misses — and *that* is the black swan that
+world changes (the cube moved), replay misses — and *that* is the novel case that
 triggers re-teaching/re-reasoning into a new skill. That capture → replay →
-re-learn cycle is the antifragility loop.
+re-learn cycle is the agent-training loop.
 
 Persistence: ``skills/<name>.json`` (the executable steps) plus a generated
 ``skills/<name>/SKILL.md`` following the ``skill://`` documentation convention,
@@ -143,7 +143,7 @@ def _write_skill_md(name: str, data: dict) -> None:
         "",
         "Open-loop replay: valid only while the target is in the recorded position. "
         "If the object has moved, replay will miss the grasp — re-teach the skill "
-        "(the black-swan → re-learn loop that makes the system antifragile).",
+        "(the agent-training correction loop that makes the system learning).",
         "",
     ]
     skill_dir = SKILLS_DIR / name

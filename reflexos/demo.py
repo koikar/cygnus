@@ -1,10 +1,10 @@
-"""End-to-end antifragility demo, in simulation, with no hardware or API keys.
+"""End-to-end agent-training demo, in simulation, with no hardware or API keys.
 
 Runs a sequence of episodes where the cube is sometimes placed in a novel zone
-(a black swan for the blind habit). The first time a swan appears the system
+(a novel placement for the blind habit). The first time a novel case appears the system
 escalates to System-2 and learns; every repeat is then a fast System-1 recall.
 The printed table and curve show escalations — and total cost — falling: the
-robot getting *stronger* from rare failures.
+robot learning a corrected routine from operation.
 
     python -m reflexos demo
 """
@@ -16,7 +16,7 @@ from .controller import Controller, EpisodeResult
 from .detector import BlackSwanDetector
 from .robot import SimBackend
 
-# zone "A" is the habit; B and C are black swans the first time they appear.
+# zone "A" is the habit; B and C are novel placements the first time they appear.
 DEFAULT_SCENARIO = ["A", "B", "B", "C", "C", "B"]
 
 
@@ -41,8 +41,8 @@ def _bar(total_calls: int) -> str:
 
 def render(results: list[EpisodeResult]) -> str:
     lines: list[str] = []
-    lines.append("ReflexOS — antifragility demo (simulated SO-101)\n")
-    header = f"{'ep':>2}  {'cube':<5} {'mode':<7} {'swan':<5} {'ok':<3} {'cost':>4}  cost"
+    lines.append("ReflexOS — agent-training demo (simulated SO-101)\n")
+    header = f"{'ep':>2}  {'cube':<5} {'mode':<7} {'novel':<5} {'ok':<3} {'cost':>4}  cost"
     lines.append(header)
     lines.append("-" * len(header))
     for r in results:
@@ -66,7 +66,7 @@ def render(results: list[EpisodeResult]) -> str:
     )
     lines.append(
         "Read the curve: a novel zone escalates once (high cost), then every "
-        "repeat is a cheap reflex — recovery cost bends down toward the habit."
+        "repeat is a cheap reflex — training cost bends down toward the habit."
     )
     return "\n".join(lines)
 

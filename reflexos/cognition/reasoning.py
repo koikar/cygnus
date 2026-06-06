@@ -4,7 +4,7 @@ Two implementations behind one ``Reasoner`` interface:
 
 * ``ScriptedReasoner`` — deterministic, offline, no API key. It "perceives" the
   cube's true zone from the scene and re-plans toward it. This is what makes the
-  antifragility demo runnable on a laptop with nothing configured.
+  agent-training demo runnable on a laptop with nothing configured.
 * ``LLMReasoner`` — the online path. Sends the scene + goal + available zones to
   a vision-capable chat model (Azure OpenAI or OpenAI) and asks which zone the
   cube is in. The plan itself is constructed locally from the named-pose table,

@@ -2,7 +2,7 @@
 
 These constraints live below the learning loop: the cognitive layer can add new
 reflexes, but it can never relax a limit defined here. This is the
-anti-"misevolution" boundary — antifragility must not come at the cost of safety.
+anti-"misevolution" boundary — training must not come at the cost of safety.
 """
 
 from __future__ import annotations

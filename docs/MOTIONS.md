@@ -315,11 +315,22 @@ few mm the grab misses — and each missed grab nudges the cube further. Lateral
 *re-teaching* of the saved pose does not help (we tried ±4°: both directions
 missed). The fix is to **close the loop with the wrist camera**.
 
-**Grasp verification — do NOT trust `gripper.pos` for small objects.**
-Empty-close (~17) and cube-held (~17) read the *same*. The reliable gate is
-**lift-and-look**: lift a few cm and check the cube rode up with the claw.
-Differential signal: the wrist cam moves *with* the claw, so a **held** cube
-stays large/fixed in frame; a **missed** cube recedes and shrinks.
+**Grasp verification — both `gripper.pos` AND wrist lift-and-look are unreliable.**
+`gripper.pos` is ambiguous: empty-close (~17) and cube-held (~17) read the
+*same* for a small cube. And **lift-and-look via the wrist cam gives false
+positives** — the wrist camera looks straight down and moves *with* the claw,
+so a cube still sitting on the table directly below the lifted jaws still looks
+"between the jaws." Several grabs were scored "held" this way and were all
+actually empty (confirmed by the twist test below).
+The **definitive gate is the wrist-twist test**: after lifting, rotate
+`wrist_roll` ~35°. A truly **held** cube rotates *with* the jaws (stays in the
+gap, faces reorient). A **missed** cube stays flat on the table while the camera
+view sweeps past it. A correctly-aimed third-person camera also works — but the
+laptop "scene" cam here points at the operator, not the table, so it is no help.
+
+**Cameras cause lag/stalls on this rig** — UVC frame reads stall the MCP loop.
+For reliable motion, operate **state-only** (`get_state` is joint-only) and reserve
+`look`/`detect` for deliberate, infrequent checks.
 
 **The loop** (`scripts/adaptive_grab.py`): perceive → decide → act → verify → recover
 1. **Hover** open-claw above the nominal grab pose (raise `shoulder_lift` ~12°) — no contact.

@@ -103,6 +103,35 @@ The finite-difference FK model is not perfect, but it is directionally accurate
 enough to plan meaningful moves. It should be treated as proprioception: a live
 "what will this servo degree do to the claw right now?" query.
 
+## Forward reach validation
+
+Validation run: `outputs/body_learning/validate_forward_reach_chunk_log.json`.
+From the high/folded pose
+(`shoulder_lift ≈ -71`, `elbow_flex ≈ 97`, `wrist_flex ≈ 7`), the proposed
+arm-chain reach command was:
+
+```json
+{
+  "elbow_flex.pos": -12,
+  "shoulder_lift.pos": -4,
+  "wrist_flex.pos": -4
+}
+```
+
+This is **not** a pure forward stretch. It validated as a forward-and-up reach:
+
+| Metric | Result |
+|---|---:|
+| Predicted translation | `x +29.1 mm`, `y -32.8 mm`, `z +72.5 mm` |
+| Measured translation | `x +17.7 mm`, `y -19.4 mm`, `z +62.7 mm` |
+| Measured joint motion | `elbow_flex -9.6°`, `shoulder_lift -3.3°`, `wrist_flex -3.3°` |
+
+Learning: at this high pose, reducing `elbow_flex` does extend the arm, but it
+also lifts strongly. A true long forward reach should start from a less
+high/retracted shoulder pose, then unfold the elbow in larger above-tolerance
+chunks while using `shoulder_lift` to hold height and `wrist_flex` to keep claw
+attitude useful. Do not include `shoulder_pan` unless changing aim direction.
+
 ## Layer 1 — per-joint primitives (fine control)
 
 Relative nudges via `move_relative` (small repeatable deltas, composable):

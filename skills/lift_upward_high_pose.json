@@ -1,0 +1,25 @@
+{
+  "name": "lift_upward_high_pose",
+  "description": "Lift upward from the current high/retracted pose using coupled shoulder, elbow, and wrist.",
+  "notes": "Measured from high pose: commanded for ~22 mm Z but actual was about z +9.2 mm; elbow lagged under load. Use as a cautious lift/pose change, not a precise vertical move.",
+  "steps": [
+    {
+      "tool": "move_relative",
+      "args": {
+        "delta": {
+          "shoulder_lift.pos": -3.2,
+          "elbow_flex.pos": -9.0,
+          "wrist_flex.pos": 12.7
+        },
+        "timeout": 4.0,
+        "tolerance": 1.0
+      }
+    },
+    {
+      "tool": "wait_until_settled",
+      "args": {
+        "timeout": 0.8
+      }
+    }
+  ]
+}

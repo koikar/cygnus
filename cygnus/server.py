@@ -163,6 +163,15 @@ def main() -> None:
     )
     parser.add_argument("--host", default="127.0.0.1", help="bind host for http/sse")
     parser.add_argument("--http-port", type=int, default=8000, help="bind port for http/sse")
+    parser.add_argument(
+        "--public-host",
+        action="append",
+        default=[],
+        metavar="HOST",
+        help="public hostname this server is reachable at behind a tunnel "
+        "(e.g. cygnus.tedi.studio); repeatable. Added to the MCP DNS-rebinding "
+        "allow-list so requests arriving with that Host header are accepted.",
+    )
     args = parser.parse_args()
 
     global _robot
@@ -179,9 +188,25 @@ def main() -> None:
     if args.transport == "stdio":
         mcp.run("stdio")
     else:
-        # streamable-http / sse: bind a network listener a remote tedi can reach.
+        # streamable-http / sse: bind a network listener a remote agent can reach.
         mcp.settings.host = args.host
         mcp.settings.port = args.http_port
+        if args.public_host:
+            # Behind a tunnel (e.g. cloudflared → cygnus.tedi.studio) the request
+            # arrives with the public Host header, which DNS-rebinding protection
+            # blocks by default. Allow the named hosts while keeping localhost.
+            from mcp.server.transport_security import TransportSecuritySettings
+
+            allowed_hosts = ["127.0.0.1:*", "localhost:*", "[::1]:*"]
+            allowed_origins = ["http://127.0.0.1:*", "http://localhost:*", "http://[::1]:*"]
+            for h in args.public_host:
+                allowed_hosts += [h, f"{h}:*"]
+                allowed_origins += [f"https://{h}", f"http://{h}"]
+            mcp.settings.transport_security = TransportSecuritySettings(
+                enable_dns_rebinding_protection=True,
+                allowed_hosts=allowed_hosts,
+                allowed_origins=allowed_origins,
+            )
         mcp.run("streamable-http" if args.transport == "http" else "sse")
 
 

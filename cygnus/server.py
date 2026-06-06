@@ -153,6 +153,23 @@ def move_to(target: dict[str, float]) -> dict:
 
 
 @mcp.tool(annotations=_ACTUATE)
+def move_relative(delta: dict[str, float]) -> dict:
+    """Nudge joints by RELATIVE degrees from the current pose. Keys are '<joint>.pos';
+    only the given joints change, the rest hold. Clamped to safe limits.
+
+    This is the composable primitive for *aligning* to a target whatever its
+    position — small repeatable nudges (e.g. {"shoulder_pan.pos": -5}) you chain
+    based on the camera, instead of a frozen absolute pose. Computed server-side
+    (current+delta) so it costs one round-trip, not two."""
+    backend = _backend()
+    current = backend.get_observation().joints
+    target = dict(current)
+    for key, dv in delta.items():
+        target[key] = current.get(key, 0.0) + float(dv)
+    return _obs_to_dict(backend.move_to(clamp_action(target)))
+
+
+@mcp.tool(annotations=_ACTUATE)
 def grip(mode: str) -> dict:
     """Open or close the gripper. ``mode`` is 'open' or 'close'."""
     if mode not in {"open", "close"}:

@@ -28,9 +28,11 @@ def pose(
     return {f"{name}.pos": float(v) for name, v in zip(JOINTS, values)}
 
 
-# The physical resting pose, captured live by kinesthetic teaching on the real
-# SO-101 (relax → hand-pose → record). Mirror of the `home_v2` skill.
-HOME = pose(3.1, -99.5, 96.7, 16.2, -96.8, grip=3.3)
+# The physical resting pose: folded backward onto the harness/base area, with the
+# wrist camera pointed upward toward the ceiling. Validated on the live SO-101.
+# (An alternate live-taught rest pose is saved as the `home_v2` skill; changing
+# this canonical HOME requires re-validating the home→reach→grab→home demo.)
+HOME = pose(0, -45, 95, -70, grip=60)
 
 # Cube pick locations. The arm's *habit* is trained for zone "A"; "B"/"C" are
 # the novel placements that constitute black swans for a blind habit.

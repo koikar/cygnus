@@ -173,6 +173,30 @@ cloudflared tunnel --url http://localhost:8000      # → https://<id>.trycloudf
 # then add  https://<id>.trycloudflare.com/mcp  as an MCP server to your agent
 ```
 
+### 3. Two local agents sharing one arm (Claude Code + Codex)
+
+The SO-101 serial port has a **single owner** — only one process can hold it.
+So when more than one client should drive the arm, run **one** HTTP server (it
+owns the serial bus and the camera) and point every client at it. Do **not**
+register the arm as a `stdio` server in two clients: each would spawn its own
+`cygnus.server`, and they'd collide on the port.
+
+```bash
+# 1. ONE server, launched from a camera-authorized terminal so --camera-index 0 works.
+#    (If the launching app lacks camera permission, use --camera-index -1 = motion-only.)
+python -m cygnus.server --backend so101 --port <FOLLOWER_PORT> --id cygnus_follower \
+    --camera-index 0 --transport http --host 127.0.0.1 --http-port 8000
+
+# 2. Register the same URL with each client:
+claude mcp add --transport http cygnus-robot http://127.0.0.1:8000/mcp
+codex  mcp add cygnus-robot --url http://127.0.0.1:8000/mcp
+```
+
+Because the *server* process holds the camera, `look` returns images to **every**
+client regardless of that client app's own camera permission. Validate with
+`scripts/smoke_mcp.py --url http://127.0.0.1:8000/mcp` (read-only; add `--move
+home` only with a clear workspace).
+
 No hardware yet? Swap `--backend so101 --port ...` for `--backend sim` — the same
 tools run against the simulator. On real hardware, `look` returns the **camera
 image** (for the agent's vision model) plus joint/scene state; in sim it returns

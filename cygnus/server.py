@@ -31,7 +31,7 @@ from mcp.types import ToolAnnotations
 
 from .robot import build_backend
 from .robot.base import RobotBackend
-from .safety import clamp_action
+from .safety import clamp_action, sanitize_call
 from .types import Observation
 
 mcp = FastMCP("cygnus-robot")
@@ -44,6 +44,10 @@ _READ_ONLY = ToolAnnotations(
 )
 _ACTUATE = ToolAnnotations(
     readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=True
+)
+# Writes a skill file but moves no hardware — no approval gate needed.
+_WRITE = ToolAnnotations(
+    readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=False
 )
 
 # Set by main(); the tools operate this body.
@@ -117,20 +121,22 @@ def _encode_jpeg(frame, max_width: int = 512, quality: int = 55) -> bytes | None
 
 
 @mcp.tool(annotations=_READ_ONLY)
-def look():
-    """Capture the current scene. On real hardware this returns the camera image
-    (for the agent's vision model) alongside the joint/scene state; in simulation
-    it returns the structured scene only."""
+def look(camera: str = "wrist", max_width: int = 512, quality: int = 55):
+    """Capture the scene. ``camera`` selects 'wrist' (eye-in-hand, default), 'scene'
+    (third-person), or 'both'. Defaulting to one compact image keeps responses small
+    enough for a tunnel; pass camera='both' (and/or a larger max_width) when you
+    need the overview too. In simulation, returns structured state only."""
     obs = _backend().look()
     state = _obs_to_dict(obs)
-    # One labeled image per camera (e.g. "wrist" eye-in-hand + "scene" overview),
-    # so the agent knows which viewpoint is which.
     frames = dict(obs.frames) if obs.frames else (
         {"front": obs.frame} if obs.frame is not None else {}
     )
+    if camera != "both":
+        selected = {k: v for k, v in frames.items() if k == camera}
+        frames = selected or frames  # fall back if the requested name isn't present
     content: list = []
     for name, fr in frames.items():
-        jpeg = _encode_jpeg(fr)
+        jpeg = _encode_jpeg(fr, max_width=max_width, quality=quality)
         if jpeg is not None:
             content.append(f"camera: {name}")
             content.append(Image(data=jpeg, format="jpeg"))
@@ -158,6 +164,53 @@ def grip(mode: str) -> dict:
 def home() -> dict:
     """Return the arm to its safe neutral pose."""
     return _obs_to_dict(_backend().home())
+
+
+@mcp.tool(annotations=_READ_ONLY)
+def list_skills() -> list:
+    """List saved robot skills (recorded, replayable tool-call sequences)."""
+    from . import skills
+
+    return skills.list_skills()
+
+
+@mcp.tool(annotations=_WRITE)
+def save_skill(name: str, steps: list, description: str = "", notes: str = "") -> dict:
+    """Save a reusable skill from an ordered list of tool calls — each
+    {"tool": "move_to"|"grip"|"home", "args": {...}}. Writes skills/<name>.json +
+    a SKILL.md. Recording only — does NOT move the robot."""
+    from . import skills
+
+    saved = skills.save_skill(name, steps, description, notes)
+    return {"saved": saved["name"], "steps": len(saved["steps"]), "path": f"skills/{name}.json"}
+
+
+@mcp.tool(annotations=_ACTUATE)
+def run_skill(name: str) -> dict:
+    """Replay a saved skill: execute its recorded move_to/grip/home steps in order.
+    Open-loop — only valid while the target is in the position it was taught for."""
+    from . import skills
+
+    skill = skills.load_skill(name)
+    backend = _backend()
+    executed = 0
+    for raw in skill.get("steps", []):
+        call = sanitize_call(raw)
+        tool = call["tool"]
+        args = call.get("args", {})
+        if tool == "move_to":
+            backend.move_to(args["target"])
+        elif tool == "grip":
+            backend.grip(args["mode"])
+        elif tool == "home":
+            backend.home()
+        else:
+            raise ValueError(f"unknown tool in skill {name!r}: {tool!r}")
+        executed += 1
+    result = _obs_to_dict(backend.get_observation())
+    result["ran_skill"] = name
+    result["steps_executed"] = executed
+    return result
 
 
 def main() -> None:

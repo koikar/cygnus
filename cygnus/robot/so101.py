@@ -39,24 +39,33 @@ class SO101Backend:
         self._robot: Any = None
 
     def connect(self) -> None:
-        from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
         from lerobot.robots.so_follower import SO101Follower, SO101FollowerConfig
 
-        config = SO101FollowerConfig(
-            port=self.port,
-            id=self.id,
-            max_relative_target=None,
-            cameras={
+        # Camera is optional: pass camera_index < 0 (or None) to run motion-only.
+        # `look` then returns state without an image, exactly like the simulator —
+        # useful when the OS blocks camera access (e.g. macOS TCC) or no cam is wired.
+        cameras = {}
+        if self.camera_index is not None and self.camera_index >= 0:
+            from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
+
+            cameras = {
                 "front": OpenCVCameraConfig(
                     index_or_path=self.camera_index,
                     width=self.width,
                     height=self.height,
                     fps=self.fps,
                 )
-            },
+            }
+        config = SO101FollowerConfig(
+            port=self.port,
+            id=self.id,
+            max_relative_target=None,
+            cameras=cameras,
         )
         self._robot = SO101Follower(config)
-        self._robot.connect(calibrate=True)
+        # Load the saved calibration (created by `lerobot-calibrate`); never run
+        # interactive calibration from the server.
+        self._robot.connect(calibrate=False)
 
     def disconnect(self) -> None:
         if self._robot is not None:

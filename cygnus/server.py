@@ -149,7 +149,12 @@ def main() -> None:
     parser.add_argument("--backend", default="sim", choices=["sim", "so101"])
     parser.add_argument("--port", help="serial port for the SO-101 (so101 backend)")
     parser.add_argument("--id", default="cygnus_follower", help="calibration id (so101 backend)")
-    parser.add_argument("--camera-index", type=int, default=0)
+    parser.add_argument(
+        "--camera-index",
+        type=int,
+        default=0,
+        help="OpenCV camera index for the so101 backend; use -1 to run motion-only (no camera)",
+    )
     parser.add_argument(
         "--transport",
         default="stdio",

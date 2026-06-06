@@ -226,6 +226,135 @@ def _grip_mode(
     return _obs_with_motion(obs, motion, target)
 
 
+def _get_ee_pose_dict(joints: dict[str, float] | None = None) -> dict:
+    from .kinematics import so101_kinematics
+
+    joints = joints or _backend().get_observation().joints
+    return so101_kinematics().pose(joints).as_dict()
+
+
+def _maybe_get_ee_pose_dict(joints: dict[str, float]) -> dict:
+    try:
+        return {"available": True, "pose": _get_ee_pose_dict(joints)}
+    except Exception as exc:
+        return {"available": False, "error": str(exc)}
+
+
+def _move_ee_to(
+    *,
+    x: float,
+    y: float,
+    z: float,
+    wx: float | None = None,
+    wy: float | None = None,
+    wz: float | None = None,
+    gripper: float | None = None,
+    orientation_weight: float = 0.01,
+    max_step_m: float = 0.04,
+    wait: bool = True,
+    timeout: float = 2.0,
+    tolerance: float = 2.0,
+) -> dict:
+    import math
+
+    from .kinematics import EEPose, so101_kinematics
+
+    obs = _backend().get_observation()
+    kin = so101_kinematics()
+    current_pose = kin.pose(obs.joints)
+    requested_pose = EEPose(
+        x=float(x),
+        y=float(y),
+        z=float(z),
+        wx=current_pose.wx if wx is None else float(wx),
+        wy=current_pose.wy if wy is None else float(wy),
+        wz=current_pose.wz if wz is None else float(wz),
+        matrix=current_pose.matrix,
+    )
+    dx = requested_pose.x - current_pose.x
+    dy = requested_pose.y - current_pose.y
+    dz = requested_pose.z - current_pose.z
+    distance = math.sqrt(dx * dx + dy * dy + dz * dz)
+    target_pose = requested_pose
+    clipped = False
+    if distance > max_step_m and distance > 0:
+        scale = max_step_m / distance
+        target_pose = EEPose(
+            x=current_pose.x + dx * scale,
+            y=current_pose.y + dy * scale,
+            z=current_pose.z + dz * scale,
+            wx=requested_pose.wx,
+            wy=requested_pose.wy,
+            wz=requested_pose.wz,
+            matrix=current_pose.matrix,
+        )
+        clipped = True
+
+    target = kin.solve(
+        obs.joints,
+        target_pose,
+        gripper=gripper,
+        orientation_weight=orientation_weight,
+    )
+    result = _move_to(target, wait=wait, timeout=timeout, tolerance=tolerance)
+    result["ee"] = {
+        "current": current_pose.as_dict(),
+        "requested": requested_pose.as_dict(),
+        "target": target_pose.as_dict(),
+        "clipped_to_max_step": clipped,
+        "requested_distance_m": distance,
+        "max_step_m": max_step_m,
+        "orientation_weight": orientation_weight,
+    }
+    return result
+
+
+def _move_ee_by(
+    *,
+    dx: float = 0.0,
+    dy: float = 0.0,
+    dz: float = 0.0,
+    dwx: float = 0.0,
+    dwy: float = 0.0,
+    dwz: float = 0.0,
+    gripper: float | None = None,
+    orientation_weight: float = 0.01,
+    max_step_m: float = 0.04,
+    wait: bool = True,
+    timeout: float = 2.0,
+    tolerance: float = 2.0,
+) -> dict:
+    from .kinematics import so101_kinematics
+
+    obs = _backend().get_observation()
+    kin = so101_kinematics()
+    current_pose = kin.pose(obs.joints)
+    target_pose = kin.offset_pose(
+        current_pose,
+        dx=dx,
+        dy=dy,
+        dz=dz,
+        dwx=dwx,
+        dwy=dwy,
+        dwz=dwz,
+        max_step_m=max_step_m,
+    )
+    return _move_ee_to(
+        x=target_pose.x,
+        y=target_pose.y,
+        z=target_pose.z,
+        wx=target_pose.wx,
+        wy=target_pose.wy,
+        wz=target_pose.wz,
+        gripper=gripper,
+        orientation_weight=orientation_weight,
+        max_step_m=max_step_m,
+        wait=wait,
+        timeout=timeout,
+        tolerance=tolerance,
+    )
+
+
 @mcp.tool(annotations=_READ_ONLY)
 def get_capabilities() -> dict:
     """Return the robot MCP contract and safety envelope."""
@@ -234,10 +363,14 @@ def get_capabilities() -> dict:
         "backend": _backend().name,
         "tools": {
             "look": "Capture the camera image plus current robot state.",
+            "detect_colored_blocks": "Return simple HSV color blob candidates from a camera.",
             "get_state": "Return joint positions and structured scene state.",
             "get_robot_model": "Return joints, limits, presets, cameras, and current state.",
+            "get_ee_pose": "Return end-effector pose from FK.",
             "move_to": "Move toward safe joint-space targets; targets are clamped.",
             "move_relative": "Nudge joints relative to the current pose.",
+            "move_ee_to": "Move the gripper toward a Cartesian pose via IK.",
+            "move_ee_by": "Translate/rotate the gripper by a small Cartesian delta via IK.",
             "set_gripper": "Command a numeric gripper position.",
             "grip": "Open or close the gripper.",
             "wait_until_settled": "Poll until the observed pose stops changing.",
@@ -250,6 +383,7 @@ def get_capabilities() -> dict:
         },
         "safety": {
             "move_to_clamped": True,
+            "max_default_ee_step_m": 0.04,
             "actuation_tools_destructive": True,
             "e_stop": "Ctrl+C the server or remove robot power.",
         },
@@ -279,6 +413,15 @@ def get_robot_model() -> dict:
             "open_preset": poses.OPEN_GRIP,
             "closed_preset": poses.CLOSED_GRIP,
             "note": "Use set_gripper(position) to sweep the calibrated numeric range.",
+        },
+        "end_effector": {
+            "pose_tool": "get_ee_pose",
+            "move_tools": ["move_ee_by", "move_ee_to"],
+            "frame": "base_link",
+            "target_frame": "gripper_frame_link",
+            "units": {"position": "meters", "rotation": "radians_rotvec"},
+            "default_max_step_m": 0.04,
+            "current": _maybe_get_ee_pose_dict(state["joints"]),
         },
         "named_poses": {
             "home": poses.HOME,
@@ -339,6 +482,53 @@ def look(camera: str = "wrist", max_width: int = 512, quality: int = 55):
     return state
 
 
+@mcp.tool(annotations=_READ_ONLY)
+def detect_colored_blocks(
+    camera: str = "scene",
+    min_area: float = 120.0,
+    max_results: int = 12,
+) -> dict:
+    """Return simple color-blob target candidates from a camera frame.
+
+    This is a lightweight tabletop helper, not a full detector. Use it to choose
+    candidate pixels for purple/cyan/orange/blue blocks, then verify with
+    `look(camera="scene")`.
+    """
+    from .vision import detect_colored_blocks as detect
+
+    obs = _backend().look()
+    frames = dict(obs.frames) if obs.frames else (
+        {"front": obs.frame} if obs.frame is not None else {}
+    )
+    if camera in frames:
+        selected_camera = camera
+        frame = frames[camera]
+    elif frames:
+        selected_camera, frame = next(iter(frames.items()))
+    else:
+        selected_camera, frame = camera, None
+    if frame is None:
+        return {"camera": camera, "detections": [], "state": _obs_to_dict(obs)}
+    return {
+        "camera": selected_camera,
+        "detections": detect(frame, min_area=min_area, max_results=max_results),
+        "state": _obs_to_dict(obs),
+    }
+
+
+@mcp.tool(annotations=_READ_ONLY)
+def get_ee_pose() -> dict:
+    """Return the current end-effector pose from FK.
+
+    Position is meters in the URDF base frame; orientation is a rotation vector
+    in radians. This is the body schema used by Cartesian movement tools.
+    """
+    obs = _backend().get_observation()
+    result = _obs_to_dict(obs)
+    result["ee_pose"] = _get_ee_pose_dict(obs.joints)
+    return result
+
+
 @mcp.tool(annotations=_ACTUATE)
 def move_to(
     target: dict[str, float],
@@ -374,6 +564,81 @@ def move_relative(
     for key, dv in delta.items():
         target[key] = current.get(key, 0.0) + float(dv)
     return _move_to(target, wait=wait, timeout=timeout, tolerance=tolerance)
+
+
+@mcp.tool(annotations=_ACTUATE)
+def move_ee_to(
+    x: float,
+    y: float,
+    z: float,
+    wx: float | None = None,
+    wy: float | None = None,
+    wz: float | None = None,
+    gripper: float | None = None,
+    orientation_weight: float = 0.01,
+    max_step_m: float = 0.04,
+    wait: bool = True,
+    timeout: float = 2.0,
+    tolerance: float = 2.0,
+) -> dict:
+    """Move the gripper toward a Cartesian pose using FK/IK.
+
+    Position is meters in the URDF base frame. Orientation defaults to the
+    current gripper orientation; pass ``wx/wy/wz`` to request a rotvec target.
+    Large translations are clipped to ``max_step_m`` so agents can safely repeat
+    the call instead of issuing a single large IK jump.
+    """
+    return _move_ee_to(
+        x=x,
+        y=y,
+        z=z,
+        wx=wx,
+        wy=wy,
+        wz=wz,
+        gripper=gripper,
+        orientation_weight=orientation_weight,
+        max_step_m=max_step_m,
+        wait=wait,
+        timeout=timeout,
+        tolerance=tolerance,
+    )
+
+
+@mcp.tool(annotations=_ACTUATE)
+def move_ee_by(
+    dx: float = 0.0,
+    dy: float = 0.0,
+    dz: float = 0.0,
+    dwx: float = 0.0,
+    dwy: float = 0.0,
+    dwz: float = 0.0,
+    gripper: float | None = None,
+    orientation_weight: float = 0.01,
+    max_step_m: float = 0.04,
+    wait: bool = True,
+    timeout: float = 2.0,
+    tolerance: float = 2.0,
+) -> dict:
+    """Translate/rotate the gripper by a small Cartesian delta using FK/IK.
+
+    Position deltas are meters in the URDF base frame; rotation deltas are
+    radians added to the current rotation vector. This is the preferred tool for
+    approach/descend/lift moves because it avoids joint-space guessing.
+    """
+    return _move_ee_by(
+        dx=dx,
+        dy=dy,
+        dz=dz,
+        dwx=dwx,
+        dwy=dwy,
+        dwz=dwz,
+        gripper=gripper,
+        orientation_weight=orientation_weight,
+        max_step_m=max_step_m,
+        wait=wait,
+        timeout=timeout,
+        tolerance=tolerance,
+    )
 
 
 @mcp.tool(annotations=_ACTUATE)
@@ -433,9 +698,10 @@ def run_sequence(
 ) -> dict:
     """Execute an ordered sequence of robot tool calls as one MCP round-trip.
 
-    Supported steps: ``move_to``, ``move_relative``, ``set_gripper``, ``grip``,
-    ``home``, and ``wait_until_settled``. Each motion step can wait for observed
-    settling, making approach-close-lift routines less race-prone.
+    Supported steps: ``move_to``, ``move_relative``, ``move_ee_to``,
+    ``move_ee_by``, ``set_gripper``, ``grip``, ``home``, and
+    ``wait_until_settled``. Each motion step can wait for observed settling,
+    making approach-close-lift routines less race-prone.
     """
     executed = []
     final: dict | None = None
@@ -457,6 +723,36 @@ def run_sequence(
                 target[key] = current.get(key, 0.0) + float(dv)
             final = _move_to(
                 target,
+                wait=wait,
+                timeout=float(args.get("timeout", timeout_per_step)),
+                tolerance=float(args.get("tolerance", tolerance)),
+            )
+        elif tool == "move_ee_to":
+            final = _move_ee_to(
+                x=float(args["x"]),
+                y=float(args["y"]),
+                z=float(args["z"]),
+                wx=args.get("wx"),
+                wy=args.get("wy"),
+                wz=args.get("wz"),
+                gripper=args.get("gripper"),
+                orientation_weight=float(args.get("orientation_weight", 0.01)),
+                max_step_m=float(args.get("max_step_m", 0.04)),
+                wait=wait,
+                timeout=float(args.get("timeout", timeout_per_step)),
+                tolerance=float(args.get("tolerance", tolerance)),
+            )
+        elif tool == "move_ee_by":
+            final = _move_ee_by(
+                dx=float(args.get("dx", 0.0)),
+                dy=float(args.get("dy", 0.0)),
+                dz=float(args.get("dz", 0.0)),
+                dwx=float(args.get("dwx", 0.0)),
+                dwy=float(args.get("dwy", 0.0)),
+                dwz=float(args.get("dwz", 0.0)),
+                gripper=args.get("gripper"),
+                orientation_weight=float(args.get("orientation_weight", 0.01)),
+                max_step_m=float(args.get("max_step_m", 0.04)),
                 wait=wait,
                 timeout=float(args.get("timeout", timeout_per_step)),
                 tolerance=float(args.get("tolerance", tolerance)),
@@ -504,8 +800,8 @@ def list_skills() -> list:
 @mcp.tool(annotations=_WRITE)
 def save_skill(name: str, steps: list, description: str = "", notes: str = "") -> dict:
     """Save a reusable skill from an ordered list of tool calls — each
-    {"tool": "move_to"|"grip"|"home", "args": {...}}. Writes skills/<name>.json +
-    a SKILL.md. Recording only — does NOT move the robot."""
+    {"tool": "move_to"|"move_ee_by"|"grip"|"home", "args": {...}}. Writes
+    skills/<name>.json + a SKILL.md. Recording only — does NOT move the robot."""
     from . import skills
 
     saved = skills.save_skill(name, steps, description, notes)
@@ -533,6 +829,30 @@ def run_skill(name: str) -> dict:
             for key, dv in args["delta"].items():
                 target[key] = current.get(key, 0.0) + float(dv)
             final = _move_to(target)
+        elif tool == "move_ee_to":
+            final = _move_ee_to(
+                x=float(args["x"]),
+                y=float(args["y"]),
+                z=float(args["z"]),
+                wx=args.get("wx"),
+                wy=args.get("wy"),
+                wz=args.get("wz"),
+                gripper=args.get("gripper"),
+                orientation_weight=float(args.get("orientation_weight", 0.01)),
+                max_step_m=float(args.get("max_step_m", 0.04)),
+            )
+        elif tool == "move_ee_by":
+            final = _move_ee_by(
+                dx=float(args.get("dx", 0.0)),
+                dy=float(args.get("dy", 0.0)),
+                dz=float(args.get("dz", 0.0)),
+                dwx=float(args.get("dwx", 0.0)),
+                dwy=float(args.get("dwy", 0.0)),
+                dwz=float(args.get("dwz", 0.0)),
+                gripper=args.get("gripper"),
+                orientation_weight=float(args.get("orientation_weight", 0.01)),
+                max_step_m=float(args.get("max_step_m", 0.04)),
+            )
         elif tool == "set_gripper":
             final = _set_gripper(float(args["position"]))
         elif tool == "grip":

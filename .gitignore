@@ -25,3 +25,6 @@ calibration/
 .idea/
 .vscode/
 *.swp
+assets/
+!cygnus/assets/
+!cygnus/assets/**

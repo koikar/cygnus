@@ -1,0 +1,15 @@
+{
+  "name": "gripper_half_close",
+  "description": "Move the gripper to a half-closed practice position.",
+  "notes": "Useful for learning jaw articulation without a full grasp.",
+  "steps": [
+    {
+      "tool": "set_gripper",
+      "args": {
+        "position": 30,
+        "timeout": 1.5,
+        "tolerance": 3.0
+      }
+    }
+  ]
+}

@@ -5,6 +5,8 @@ very next occurrence of the same situation must be a fast System-1 reflex with
 no escalation and lower cost. All episodes must still succeed.
 """
 
+import pytest
+
 from cygnus.cognition import build_cognition
 from cygnus.controller import Controller
 from cygnus.detector import BlackSwanDetector
@@ -48,6 +50,7 @@ def test_escalations_fall_to_zero_over_repeats():
 
 
 def test_so101_kinematics_round_trips_current_pose():
+    pytest.importorskip("placo")  # Cartesian IK needs placo (the `kinematics` extra)
     joints = {
         "shoulder_pan.pos": 59.0,
         "shoulder_lift.pos": -1.5,
@@ -62,3 +65,24 @@ def test_so101_kinematics_round_trips_current_pose():
 
     for key, value in joints.items():
         assert abs(solved[key] - value) < 1e-6
+
+
+def test_so101_joint_effects_ground_servo_degrees_in_claw_motion():
+    pytest.importorskip("placo")  # Cartesian IK needs placo (the `kinematics` extra)
+    joints = {
+        "shoulder_pan.pos": 59.0,
+        "shoulder_lift.pos": -34.0,
+        "elbow_flex.pos": 80.0,
+        "wrist_flex.pos": 14.0,
+        "wrist_roll.pos": 0.0,
+        "gripper.pos": 60.0,
+    }
+    effects = so101_kinematics().joint_effects(joints, step_deg=1.0)["effects"]
+
+    # At this clear/retracted pose, +shoulder_lift lowers the claw in base Z.
+    assert effects["shoulder_lift.pos"]["per_degree_mm"]["z"] < -1.0
+    # Base pan and wrist roll are orientation-heavy, not clean vertical controls.
+    assert abs(effects["shoulder_pan.pos"]["per_degree_mm"]["z"]) < 0.5
+    assert abs(effects["wrist_roll.pos"]["per_degree_mm"]["z"]) < 0.5
+    # Gripper commands articulate the jaw, not the FK end-effector frame.
+    assert effects["gripper.pos"]["per_degree_mm"] == {"x": 0.0, "y": 0.0, "z": 0.0}

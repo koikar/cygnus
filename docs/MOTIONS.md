@@ -40,6 +40,69 @@ straight (`elbow_flex` near `0`), high positive `shoulder_lift` (around `35`),
 and high `wrist_flex` (around `90`) near the table/cable. Recover by retracting:
 decrease `shoulder_lift`, increase `elbow_flex`, and decrease `wrist_flex`.
 
+## Foundational primitives learned first
+
+Before object work, teach and use these body-only motions:
+
+| Skill | Meaning | Measured note |
+|---|---|---|
+| `clear_table_retract` | `shoulder_lift -18`, `elbow_flex +18`, `wrist_flex -28`, then settle | Current safe lift-away primitive when the claw is touching or nearly touching the table. |
+| `clearance_lift_small` | `shoulder_lift -8`, `elbow_flex +8`, `wrist_flex -10`, then settle | Use only after the claw is already visibly clear; this is a posture/retraction nudge, not a precise Cartesian lift. |
+| `clearance_lower_small` | inverse of `clearance_lift_small` | Use only to return from a known raised clearance pose; do not run near the table. |
+| `gripper_open` | `set_gripper(60)` | Actual open readings around `58..60`. |
+| `gripper_half_close` | `set_gripper(30)` | Actual half-close readings around `28..32`. |
+| `gripper_close` | `set_gripper(15)` | Actual closed readings around `16..17`. |
+| `grabbing_motion_practice` | open → 45 → 30 → close → 30 → 45 → open | No object required; use to verify jaw articulation before grasp attempts. |
+
+Do **not** treat `move_ee_by(dz=+...)` as the default "lift away from table"
+primitive. Near the table, Cartesian `dz` coupled into sideways/wrist movement
+and caused contact. Lift away first with `clear_table_retract`; use Cartesian
+translation only once the claw is visibly clear, and always run: small nudge →
+settle → `get_ee_pose` → decide the next nudge.
+
+## Proprioception: degrees must mean millimeters
+
+The agent must not treat servo degrees as opaque numbers. At any pose, call
+`get_joint_effects(step_degrees=1)` before planning joint nudges. It is read-only
+FK finite differencing: for each joint it reports how a positive degree changes
+the claw in `x/y/z` millimeters and orientation radians. This map is
+pose-dependent; recompute it after large moves.
+
+The early "only the claw moves" symptom came from under-commanding the arm:
+1 cm Cartesian nudges often solve to only about `2..4` degrees of joint motion,
+while the settle tolerance was `3` degrees. The tool could declare success while
+the arm barely moved. Use meaningful arm commands and tighter tolerances:
+
+| Situation | Better command style |
+|---|---|
+| Proving shoulder/base motion | `move_relative({"shoulder_pan.pos": -18}, tolerance=1.0)` then return. |
+| Proving elbow/wrist motion | `move_relative({"elbow_flex.pos": -14, "wrist_flex.pos": 14}, tolerance=1.0)` from a clear pose. |
+| Small precise correction | Use `get_joint_effects`, choose a joint delta large enough to exceed tolerance, then re-read state. |
+| Near table | Run `clear_table_retract` first; do not test tiny Cartesian nudges against the tabletop. |
+
+Live proof from the clear pose: a `shoulder_pan -18` command moved the base about
+`17.6°` and returned about `17.3°`; an `elbow_flex -14` / `wrist_flex +14`
+command moved about `-11.7°` / `+13.9°` before returning. The arm moves; tiny
+commands plus loose tolerances were the no-op pattern.
+
+## Live Jacobian validation
+
+Validation run: `outputs/body_learning/joint_effects_validation_log.json`.
+At the clear/retracted pose, we used `get_joint_effects(step_degrees=1)`,
+predicted the claw displacement for larger joint commands, executed the commands
+with `tolerance=1.0`, then measured the resulting FK pose.
+
+| Command | Predicted claw translation | Measured claw translation | Measured joint motion | Learning |
+|---|---:|---:|---:|---|
+| `shoulder_lift -10°` | `x +11.6 mm`, `y -19.4 mm`, `z +22.1 mm` | `x +8.9 mm`, `y -14.8 mm`, `z +20.3 mm` | `shoulder_lift -8.9°` | Negative shoulder lift is the cleanest current lift-away lever. |
+| `shoulder_pan -12°` | `x +28.3 mm`, `y +16.6 mm`, `z ~0 mm` | `x +24.8 mm`, `y +20.3 mm`, `z -1.2 mm` | `shoulder_pan -11.8°` | Base pan is a real lateral translation control, not a no-op. |
+| `wrist_roll +14°` | `x -1.7 mm`, `y -1.0 mm`, `z ~0 mm` | `x -1.8 mm`, `y +0.7 mm`, `z -1.1 mm` | `wrist_roll +13.4°` | Wrist roll mostly spins the jaw; do not use it to move through space. |
+| `gripper 60→15→60` | FK translation `0 mm` | close: `~0.03 mm`, open: `0 mm` | `gripper -44.4`, then `+44.2` | Gripper is jaw articulation only; its visibility made it look like the only working motor. |
+
+The finite-difference FK model is not perfect, but it is directionally accurate
+enough to plan meaningful moves. It should be treated as proprioception: a live
+"what will this servo degree do to the claw right now?" query.
+
 ## Layer 1 — per-joint primitives (fine control)
 
 Relative nudges via `move_relative` (small repeatable deltas, composable):

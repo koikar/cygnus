@@ -1,0 +1,21 @@
+{
+  "name": "settle_and_open",
+  "description": "Wait for the arm to settle, then open the gripper to the calibrated open preset.",
+  "notes": "Good precondition before free-space navigation or grasp approach.",
+  "steps": [
+    {
+      "tool": "wait_until_settled",
+      "args": {
+        "timeout": 1.0
+      }
+    },
+    {
+      "tool": "set_gripper",
+      "args": {
+        "position": 60,
+        "timeout": 1.5,
+        "tolerance": 3.0
+      }
+    }
+  ]
+}

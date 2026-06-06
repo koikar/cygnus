@@ -1,0 +1,15 @@
+{
+  "name": "gripper_open",
+  "description": "Open the gripper to the calibrated open preset.",
+  "notes": "Measured actual open position around 58-60.",
+  "steps": [
+    {
+      "tool": "set_gripper",
+      "args": {
+        "position": 60,
+        "timeout": 1.5,
+        "tolerance": 3.0
+      }
+    }
+  ]
+}

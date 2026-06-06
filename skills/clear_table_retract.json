@@ -1,0 +1,25 @@
+{
+  "name": "clear_table_retract",
+  "description": "Retract the claw away from the table/cable by folding the arm and reducing nose-down wrist.",
+  "notes": "This is the current safe lift-away primitive. Use it when the claw is touching or almost touching the table. It is joint-space by design because Cartesian +Z coupled into sideways/wrist drift near the table.",
+  "steps": [
+    {
+      "tool": "move_relative",
+      "args": {
+        "delta": {
+          "shoulder_lift.pos": -18,
+          "elbow_flex.pos": 18,
+          "wrist_flex.pos": -28
+        },
+        "timeout": 3.0,
+        "tolerance": 3.0
+      }
+    },
+    {
+      "tool": "wait_until_settled",
+      "args": {
+        "timeout": 0.8
+      }
+    }
+  ]
+}

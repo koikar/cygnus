@@ -1,0 +1,61 @@
+{
+  "name": "free_space_box_1cm",
+  "description": "Small smooth six-step free-space box around the current pose.",
+  "notes": "Useful as a liveliness/navigation check. It is not exactly closed-loop; expect small drift and re-home or reset after.",
+  "steps": [
+    {
+      "tool": "move_ee_by",
+      "args": {
+        "dz": 0.01,
+        "max_step_m": 0.01,
+        "timeout": 2.0,
+        "tolerance": 3.0
+      }
+    },
+    {
+      "tool": "move_ee_by",
+      "args": {
+        "dy": 0.01,
+        "max_step_m": 0.01,
+        "timeout": 2.0,
+        "tolerance": 3.0
+      }
+    },
+    {
+      "tool": "move_ee_by",
+      "args": {
+        "dx": 0.01,
+        "max_step_m": 0.01,
+        "timeout": 2.0,
+        "tolerance": 3.0
+      }
+    },
+    {
+      "tool": "move_ee_by",
+      "args": {
+        "dx": -0.01,
+        "max_step_m": 0.01,
+        "timeout": 2.0,
+        "tolerance": 3.0
+      }
+    },
+    {
+      "tool": "move_ee_by",
+      "args": {
+        "dy": -0.01,
+        "max_step_m": 0.01,
+        "timeout": 2.0,
+        "tolerance": 3.0
+      }
+    },
+    {
+      "tool": "move_ee_by",
+      "args": {
+        "dz": -0.01,
+        "max_step_m": 0.01,
+        "timeout": 2.0,
+        "tolerance": 3.0
+      }
+    }
+  ]
+}

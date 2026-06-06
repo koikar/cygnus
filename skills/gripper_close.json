@@ -1,0 +1,15 @@
+{
+  "name": "gripper_close",
+  "description": "Close the gripper to the calibrated closed preset.",
+  "notes": "Measured actual closed position around 16-17.",
+  "steps": [
+    {
+      "tool": "set_gripper",
+      "args": {
+        "position": 15,
+        "timeout": 1.5,
+        "tolerance": 3.0
+      }
+    }
+  ]
+}

@@ -240,6 +240,27 @@ def _maybe_get_ee_pose_dict(joints: dict[str, float]) -> dict:
         return {"available": False, "error": str(exc)}
 
 
+def _get_joint_effects_dict(
+    joints: dict[str, float] | None = None,
+    *,
+    step_degrees: float = 1.0,
+) -> dict:
+    from .kinematics import so101_kinematics
+
+    joints = joints or _backend().get_observation().joints
+    return so101_kinematics().joint_effects(joints, step_deg=step_degrees)
+
+
+def _maybe_get_joint_effects_dict(joints: dict[str, float], *, step_degrees: float = 1.0) -> dict:
+    try:
+        return {
+            "available": True,
+            "proprioception": _get_joint_effects_dict(joints, step_degrees=step_degrees),
+        }
+    except Exception as exc:
+        return {"available": False, "error": str(exc)}
+
+
 def _move_ee_to(
     *,
     x: float,
@@ -367,6 +388,7 @@ def get_capabilities() -> dict:
             "get_state": "Return joint positions and structured scene state.",
             "get_robot_model": "Return joints, limits, presets, cameras, and current state.",
             "get_ee_pose": "Return end-effector pose from FK.",
+            "get_joint_effects": "Return live per-joint FK effects: what +1 degree does to the claw.",
             "move_to": "Move toward safe joint-space targets; targets are clamped.",
             "move_relative": "Nudge joints relative to the current pose.",
             "move_ee_to": "Move the gripper toward a Cartesian pose via IK.",
@@ -422,6 +444,12 @@ def get_robot_model() -> dict:
             "units": {"position": "meters", "rotation": "radians_rotvec"},
             "default_max_step_m": 0.04,
             "current": _maybe_get_ee_pose_dict(state["joints"]),
+        },
+        "proprioception": {
+            "tool": "get_joint_effects",
+            "meaning": "pose-dependent finite-difference FK map from joint degrees to claw movement",
+            "default_step_degrees": 1.0,
+            "current": _maybe_get_joint_effects_dict(state["joints"], step_degrees=1.0),
         },
         "named_poses": {
             "home": poses.HOME,
@@ -535,6 +563,25 @@ def get_ee_pose() -> dict:
     obs = _backend().get_observation()
     result = _obs_to_dict(obs)
     result["ee_pose"] = _get_ee_pose_dict(obs.joints)
+    return result
+
+
+@mcp.tool(annotations=_READ_ONLY)
+def get_joint_effects(step_degrees: float = 1.0) -> dict:
+    """Return what a positive joint delta means for the claw at the current pose.
+
+    This is read-only proprioception. It uses FK finite differences, not motor
+    motion: for each joint, it reports how ``+step_degrees`` changes the
+    end-effector position in meters/millimeters and orientation in radians.
+    Because the mapping is pose-dependent, call this before planning joint-space
+    nudges.
+    """
+    obs = _backend().get_observation()
+    result = _obs_to_dict(obs)
+    result["joint_effects"] = _get_joint_effects_dict(
+        obs.joints,
+        step_degrees=step_degrees,
+    )
     return result
 
 

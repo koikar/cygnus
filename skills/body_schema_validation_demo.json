@@ -1,0 +1,71 @@
+{
+  "name": "body_schema_validation_demo",
+  "description": "Demonstrate meaningful shoulder lift and base pan motion using deltas above tolerance.",
+  "notes": "Run only from a clear/retracted pose. This is a validation/demo workflow, not a manipulation primitive. Query get_joint_effects first when planning real moves.",
+  "steps": [
+    {
+      "tool": "move_relative",
+      "args": {
+        "delta": {
+          "shoulder_lift.pos": -10
+        },
+        "timeout": 3.0,
+        "tolerance": 1.0
+      }
+    },
+    {
+      "tool": "wait_until_settled",
+      "args": {
+        "timeout": 0.8
+      }
+    },
+    {
+      "tool": "move_relative",
+      "args": {
+        "delta": {
+          "shoulder_lift.pos": 10
+        },
+        "timeout": 3.0,
+        "tolerance": 1.0
+      }
+    },
+    {
+      "tool": "wait_until_settled",
+      "args": {
+        "timeout": 0.8
+      }
+    },
+    {
+      "tool": "move_relative",
+      "args": {
+        "delta": {
+          "shoulder_pan.pos": -12
+        },
+        "timeout": 3.0,
+        "tolerance": 1.0
+      }
+    },
+    {
+      "tool": "wait_until_settled",
+      "args": {
+        "timeout": 0.8
+      }
+    },
+    {
+      "tool": "move_relative",
+      "args": {
+        "delta": {
+          "shoulder_pan.pos": 12
+        },
+        "timeout": 3.0,
+        "tolerance": 1.0
+      }
+    },
+    {
+      "tool": "wait_until_settled",
+      "args": {
+        "timeout": 0.8
+      }
+    }
+  ]
+}

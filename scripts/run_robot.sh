@@ -29,8 +29,8 @@ PUBLIC_HOST="${CYGNUS_PUBLIC_HOST:-cygnus.tedi.studio}"
 
 echo "Launching cygnus-robot: port=$PORT wrist_cam=$CAM scene_cam=$SCENE_CAM http=127.0.0.1:$HTTP_PORT public=$PUBLIC_HOST"
 echo "Logs mirrored to outputs/server.log"
-# --extra server --extra robot ensures mcp + lerobot are present on a clean clone.
-uv run --extra server --extra robot python -u -m cygnus.server \
+# extras ensure mcp + lerobot + placo (Cartesian IK) are present on a clean clone.
+uv run --extra server --extra robot --extra kinematics python -u -m cygnus.server \
   --backend so101 \
   --port "$PORT" \
   --id cygnus_follower \

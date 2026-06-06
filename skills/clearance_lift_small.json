@@ -1,0 +1,25 @@
+{
+  "name": "clearance_lift_small",
+  "description": "Small upward/retracting clearance nudge from an already safe pose.",
+  "notes": "Use for smooth navigation only after the claw is already visibly clear. Visually subtle but reduces table-risk posture.",
+  "steps": [
+    {
+      "tool": "move_relative",
+      "args": {
+        "delta": {
+          "shoulder_lift.pos": -8,
+          "elbow_flex.pos": 8,
+          "wrist_flex.pos": -10
+        },
+        "timeout": 2.5,
+        "tolerance": 3.0
+      }
+    },
+    {
+      "tool": "wait_until_settled",
+      "args": {
+        "timeout": 0.8
+      }
+    }
+  ]
+}

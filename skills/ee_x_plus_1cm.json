@@ -1,0 +1,16 @@
+{
+  "name": "ee_x_plus_1cm",
+  "description": "Translate the gripper about 1 cm in URDF +X from the current pose.",
+  "notes": "Reusable relative free-space nudge; verify with get_ee_pose.",
+  "steps": [
+    {
+      "tool": "move_ee_by",
+      "args": {
+        "dx": 0.01,
+        "max_step_m": 0.01,
+        "timeout": 2.0,
+        "tolerance": 3.0
+      }
+    }
+  ]
+}

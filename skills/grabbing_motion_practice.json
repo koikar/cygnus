@@ -1,0 +1,63 @@
+{
+  "name": "grabbing_motion_practice",
+  "description": "Open-half-close-half-open gripper articulation drill.",
+  "notes": "No object required. Use to test jaw motion and calibration before any grasp attempts.",
+  "steps": [
+    {
+      "tool": "set_gripper",
+      "args": {
+        "position": 60,
+        "timeout": 1.5,
+        "tolerance": 3.0
+      }
+    },
+    {
+      "tool": "set_gripper",
+      "args": {
+        "position": 45,
+        "timeout": 1.5,
+        "tolerance": 3.0
+      }
+    },
+    {
+      "tool": "set_gripper",
+      "args": {
+        "position": 30,
+        "timeout": 1.5,
+        "tolerance": 3.0
+      }
+    },
+    {
+      "tool": "set_gripper",
+      "args": {
+        "position": 15,
+        "timeout": 1.5,
+        "tolerance": 3.0
+      }
+    },
+    {
+      "tool": "set_gripper",
+      "args": {
+        "position": 30,
+        "timeout": 1.5,
+        "tolerance": 3.0
+      }
+    },
+    {
+      "tool": "set_gripper",
+      "args": {
+        "position": 45,
+        "timeout": 1.5,
+        "tolerance": 3.0
+      }
+    },
+    {
+      "tool": "set_gripper",
+      "args": {
+        "position": 60,
+        "timeout": 1.5,
+        "tolerance": 3.0
+      }
+    }
+  ]
+}

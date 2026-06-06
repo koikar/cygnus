@@ -1,0 +1,25 @@
+{
+  "name": "clearance_lower_small",
+  "description": "Small downward/forward return from a raised clearance pose.",
+  "notes": "Only run after clearance_lift_small or from a known raised pose; do not use near the table.",
+  "steps": [
+    {
+      "tool": "move_relative",
+      "args": {
+        "delta": {
+          "shoulder_lift.pos": 8,
+          "elbow_flex.pos": -8,
+          "wrist_flex.pos": 10
+        },
+        "timeout": 2.5,
+        "tolerance": 3.0
+      }
+    },
+    {
+      "tool": "wait_until_settled",
+      "args": {
+        "timeout": 0.8
+      }
+    }
+  ]
+}

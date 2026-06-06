@@ -11,11 +11,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .safety import clamp_action
+from .safety import JOINT_LIMITS, clamp_action
 from .types import JOINTS
 
 ARM_JOINTS = [name for name in JOINTS if name != "gripper"]
 URDF_PATH = Path(__file__).parent / "assets" / "so101" / "so101_kinematics.urdf"
+POSE_KEYS = ("x", "y", "z", "wx", "wy", "wz")
 
 
 @dataclass(frozen=True)
@@ -77,6 +78,68 @@ class SO101Kinematics:
             wz=float(rotvec[2]),
             matrix=matrix.tolist(),
         )
+
+    def joint_effects(self, joints: dict[str, float], *, step_deg: float = 1.0) -> dict[str, Any]:
+        """Finite-difference body schema: what +step degrees does at this pose."""
+        step_deg = float(step_deg)
+        if step_deg == 0:
+            raise ValueError("step_deg must be non-zero")
+
+        base_pose = self.pose(joints)
+        base = base_pose.as_dict()
+        effects: dict[str, Any] = {}
+        for name in JOINTS:
+            key = f"{name}.pos"
+            current = float(joints[key])
+            target = clamp_action({key: current + step_deg})[key]
+            actual_step = target - current
+            if name == "gripper":
+                effects[key] = {
+                    "joint": name,
+                    "current_deg": current,
+                    "sample_step_deg": actual_step,
+                    "semantic": "jaw open/close only; no end-effector FK translation",
+                    "position_delta_m": {"x": 0.0, "y": 0.0, "z": 0.0},
+                    "position_delta_mm": {"x": 0.0, "y": 0.0, "z": 0.0},
+                    "rotation_delta_rad": {"wx": 0.0, "wy": 0.0, "wz": 0.0},
+                    "per_degree_mm": {"x": 0.0, "y": 0.0, "z": 0.0},
+                }
+                continue
+
+            moved_joints = dict(joints)
+            moved_joints[key] = target
+            moved = self.pose(moved_joints).as_dict()
+            pose_delta = {pose_key: moved[pose_key] - base[pose_key] for pose_key in POSE_KEYS}
+            denom = actual_step if actual_step else 1.0
+            position_delta_m = {axis: pose_delta[axis] for axis in ("x", "y", "z")}
+            position_delta_mm = {axis: 1000.0 * position_delta_m[axis] for axis in ("x", "y", "z")}
+            per_degree_mm = {
+                axis: position_delta_mm[axis] / denom for axis in ("x", "y", "z")
+            }
+            rotation_delta_rad = {axis: pose_delta[axis] for axis in ("wx", "wy", "wz")}
+            effects[key] = {
+                "joint": name,
+                "current_deg": current,
+                "sample_step_deg": actual_step,
+                "semantic": _semantic_effect(per_degree_mm, rotation_delta_rad),
+                "position_delta_m": position_delta_m,
+                "position_delta_mm": position_delta_mm,
+                "rotation_delta_rad": rotation_delta_rad,
+                "per_degree_mm": per_degree_mm,
+                "moved_pose": moved,
+            }
+
+        return {
+            "step_degrees_requested": step_deg,
+            "pose_dependent": True,
+            "coordinate_frame": "base_link",
+            "target_frame": "gripper_frame_link",
+            "current_pose": base,
+            "effects": effects,
+            "joint_limits": {
+                key: {"min": lo, "max": hi} for key, (lo, hi) in JOINT_LIMITS.items()
+            },
+        }
 
     def solve(
         self,
@@ -150,3 +213,24 @@ def so101_kinematics() -> SO101Kinematics:
     if _SO101_KINEMATICS is None:
         _SO101_KINEMATICS = SO101Kinematics()
     return _SO101_KINEMATICS
+
+
+def _semantic_effect(per_degree_mm: dict[str, float], rotation_delta_rad: dict[str, float]) -> str:
+    axes = sorted(per_degree_mm.items(), key=lambda item: abs(item[1]), reverse=True)
+    primary_axis, primary_mm = axes[0]
+    secondary_axis, secondary_mm = axes[1]
+    rotation_mag = sum(v * v for v in rotation_delta_rad.values()) ** 0.5
+    translation_mag = sum(v * v for v in per_degree_mm.values()) ** 0.5
+
+    direction = "positive" if primary_mm >= 0 else "negative"
+    parts = [f"mostly {direction} {primary_axis} translation ({primary_mm:+.2f} mm/deg)"]
+    if abs(secondary_mm) >= max(0.5, abs(primary_mm) * 0.35):
+        secondary_direction = "positive" if secondary_mm >= 0 else "negative"
+        parts.append(
+            f"with {secondary_direction} {secondary_axis} coupling ({secondary_mm:+.2f} mm/deg)"
+        )
+    if rotation_mag > 0.02 and rotation_mag * 1000 > translation_mag:
+        parts.append("orientation-dominant")
+    elif rotation_mag > 0.02:
+        parts.append("also rotates the claw")
+    return "; ".join(parts)

@@ -1,16 +1,16 @@
 # Skill: home_v2
 
-> Go to taught position 'home_v2'.
+> Go to the home_v2 rest pose (arm-only; claw unchanged).
 
 **Type:** robot motion skill (recorded tool-call sequence) · **Steps:** 1
 
 ## When to use
 
-Captured by kinesthetic teaching (relax → hand-pose → lock).
+Arm-only so carrying a cube through home keeps its grip.
 
 ## Procedure (recorded tool calls)
 
-1. `move_to` → shoulder_pan=3.1, shoulder_lift=-99.5, elbow_flex=96.7, wrist_flex=16.2, wrist_roll=-96.8, gripper=3.3
+1. `move_to` → shoulder_pan=3.1, shoulder_lift=-99.5, elbow_flex=96.7, wrist_flex=16.2, wrist_roll=-96.8
 
 ## Caveats
 

@@ -1,0 +1,31 @@
+{
+  "name": "grab_at_3",
+  "description": "Open, move to position 3, close to grab a cube there.",
+  "notes": "Pick = release -> pos3 -> grab(close=15). Tune close for cube+pads.",
+  "steps": [
+    {
+      "tool": "set_gripper",
+      "args": {
+        "position": 60
+      }
+    },
+    {
+      "tool": "move_to",
+      "args": {
+        "target": {
+          "shoulder_pan.pos": -16.791208791208792,
+          "shoulder_lift.pos": 55.956043956043956,
+          "elbow_flex.pos": -44.0,
+          "wrist_flex.pos": 91.25274725274726,
+          "wrist_roll.pos": -123.73626373626374
+        }
+      }
+    },
+    {
+      "tool": "set_gripper",
+      "args": {
+        "position": 15
+      }
+    }
+  ]
+}

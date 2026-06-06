@@ -1,16 +1,17 @@
-# Skill: paper_pos_2
+# Skill: drop_at_2
 
-> Go to taught arm position 2 (claw state unchanged).
+> Carry to position 2 and open to drop.
 
-**Type:** robot motion skill (recorded tool-call sequence) · **Steps:** 1
+**Type:** robot motion skill (recorded tool-call sequence) · **Steps:** 2
 
 ## When to use
 
-Arm-only: gripper not commanded, so the claw keeps its current open/closed state across the move. Use grab/release to set the claw.
+Place = pos2 -> release(open=60). Assumes claw already holding.
 
 ## Procedure (recorded tool calls)
 
 1. `move_to` → shoulder_pan=5.0, shoulder_lift=43.4, elbow_flex=-21.7, wrist_flex=81.6, wrist_roll=-95.8
+2. `set_gripper` → 60
 
 ## Caveats
 

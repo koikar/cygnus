@@ -1,7 +1,7 @@
 {
-  "name": "paper_pos_2",
-  "description": "Go to taught arm position 2 (claw state unchanged).",
-  "notes": "Arm-only: gripper not commanded, so the claw keeps its current open/closed state across the move. Use grab/release to set the claw.",
+  "name": "drop_at_2",
+  "description": "Carry to position 2 and open to drop.",
+  "notes": "Place = pos2 -> release(open=60). Assumes claw already holding.",
   "steps": [
     {
       "tool": "move_to",
@@ -13,6 +13,12 @@
           "wrist_flex.pos": 81.58241758241758,
           "wrist_roll.pos": -95.78021978021978
         }
+      }
+    },
+    {
+      "tool": "set_gripper",
+      "args": {
+        "position": 60
       }
     }
   ]

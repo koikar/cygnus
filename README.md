@@ -38,14 +38,16 @@ rate fall over episodes. The robot literally improves from disorder.
 ## Architecture — the arm is an MCP server
 
 Cygnus turns the robot arm into a **[Model Context Protocol](https://modelcontextprotocol.io)
-(MCP) server**: its body is exposed as tools (`look`, `move_to`, `grip`,
-`get_state`, `home`). Any MCP-speaking agent can then *operate* the arm the same
+(MCP) server**: its body is exposed as a surface of **safe primitives** (perceive,
+move in joint- or task-space, grip) plus **saved skills** (validated, replayable
+tool-call sequences). Any MCP-speaking agent can then *operate* the arm the same
 way it would use any other tool — and reason, recover, and learn through a
 **pluggable cognitive backend**.
 
 ```
    SO-101 arm  ──Python (LeRobot)──►  ROBOT MCP SERVER  (this repo)
-   joints + camera                    tools: look · move_to · grip · get_state · home
+   joints + 2 cameras                 perception · joint + Cartesian (FK/IK) · gripper
+                                       teaching/skills · safety guardrails
                                                 │
                                                 │  MCP
                                                 ▼
@@ -53,6 +55,12 @@ way it would use any other tool — and reason, recover, and learn through a
                           • reasoning model (System 2) — reasons over the camera frame
                           • memory / rationale — recall fixes, record why, learn
 ```
+
+The boundary is deliberate: the LLM **plans** by composing vetted primitives and
+recalling skills — it does **not** improvise raw joint vectors into the motor bus.
+This is the SayCan / Code-as-Policies pattern: an LLM planner on top of grounded,
+safety-clamped skills with perception in the verification loop. Every actuation
+is clamped to joint/workspace limits regardless of what the caller asks for.
 
 **Two backends behind one interface** (`CognitiveBackend`):
 
@@ -111,21 +119,90 @@ See **[PLAN.md](./PLAN.md)** for the full build plan and phases.
 
 ## Running the robot
 
-The robot's body is exposed as an **MCP server** (`cygnus.server`) with five body
-tools — `look`, `get_state`, `move_to`, `grip`, `home` — plus the read-only
-`get_capabilities` discovery helper. A reasoning agent (Codex, Claude, or a
-hosted tedi) connects over MCP and operates the arm. Safety limits are enforced
-on every `move_to` regardless of the caller, and actuation tools are annotated
-as physical-world/destructive actions so compatible clients can gate them.
+The robot's body is exposed as an **MCP server** (`cygnus.server`). A reasoning
+agent (Codex, Claude, or a hosted tedi) connects over MCP and operates the arm by
+composing these primitives and recalling saved skills. Safety limits are enforced
+on every motion regardless of the caller, and actuation tools are annotated as
+physical-world/destructive actions so compatible clients can gate them.
 
-| Tool | Channel | Purpose |
-| --- | --- | --- |
-| `get_capabilities` | MCP only | Discover tool contract, backend, and safety policy. |
-| `look` | camera USB-C | Return the camera image plus current state metadata. |
-| `get_state` | motion USB-C | Return joint positions and structured scene state. |
-| `move_to` | motion USB-C | Move toward joint-space targets, clamped to safe limits. |
-| `grip` | motion USB-C | Open or close the gripper. |
-| `home` | motion USB-C | Return the arm to the neutral safe pose. |
+**Perception** — see the body and the scene:
+
+| Tool | Purpose |
+| --- | --- |
+| `get_capabilities` | Discover the tool contract, backend, and safety policy (read-only). |
+| `get_robot_model` | Agent-facing body schema: joints, limits, presets, current state. |
+| `get_state` | Current joint positions + structured scene. |
+| `look` | Capture a camera frame — `wrist` (eye-in-hand, default), `scene`, or `both`. |
+| `get_joint_effects` | FK finite-difference map: what a +1° on each joint does to the claw (mm/rad). |
+| `detect_colored_blocks` | Find colored blocks in a frame; annotated with table targets when calibrated. |
+
+**Cartesian control** — task-space via FK/IK (placo + the bundled SO-101 URDF):
+
+| Tool | Purpose |
+| --- | --- |
+| `get_ee_pose` | End-effector `(x, y, z)` + orientation from FK. |
+| `move_ee_to` | Move to an absolute base-frame point (IK → joints), workspace-checked. |
+| `move_ee_by` | Translate the gripper by `(dx, dy, dz)`, capped per step. |
+
+**Joint control** — fine/low-level:
+
+| Tool | Purpose |
+| --- | --- |
+| `move_to` | Move toward absolute joint targets, clamped to safe limits. |
+| `move_relative` | Apply relative joint deltas, clamped. |
+
+**Gripper:**
+
+| Tool | Purpose |
+| --- | --- |
+| `set_gripper` | Set jaw position (`~15` = closed, `~60` = open; not cm). |
+| `grip` | Preset wrapper: `open` / `close`. |
+
+**Teaching & skills** — capture and replay:
+
+| Tool | Purpose |
+| --- | --- |
+| `relax` | Torque on/off for kinesthetic hand-teaching (limp the arm, pose it, re-lock). |
+| `save_skill` | Save an ordered tool-call sequence as `skills/<name>.json` (recording only — no motion). |
+| `run_skill` | Replay a saved skill's steps in order (open-loop). |
+| `list_skills` / `audit_skills` | List skills; validate them against the current body schema. |
+| `run_sequence` | Execute an inline list of tool calls as one guarded sequence. |
+
+**Pose & safety:**
+
+| Tool | Purpose |
+| --- | --- |
+| `home` | Return to the canonical harness-rest pose (`poses.HOME`), wrist cam facing up. |
+| `wait_until_settled` | Poll until the pose stops changing (commands no motion). |
+| `set_speed` | Lower servo acceleration/velocity for smooth motion (default Accel `254` is snappy). |
+| `fit_table_calibration` / `get_table_calibration` / `project_pixel_to_table` | Pixel→table homography for grounded vision targets. |
+
+**Built-in safety guardrails** (immutable — the learning loop can add reflexes but
+never relax a limit):
+
+- **Joint clamp** (`clamp_action`): every joint target is forced into its safe
+  range; unknown/typo'd joint keys are dropped, never forwarded to the bus.
+- **Workspace bounds + `check_ee_target`**: Cartesian targets must stay inside the
+  base-frame box (default `x 0.08–0.46`, `y ±0.28`, `z −0.10–0.38` m); single EE
+  steps are capped (`CYGNUS_MAX_STEP_M`, default `0.05` m).
+- **Motion lock**: one process-wide actuation lock serializes motion across
+  concurrent clients (Claude + Codex + tedis share one arm) — callers wait, then
+  fail closed with `MotionBusy` rather than interleaving motor commands.
+- **`set_speed`**: lowers servo acceleration/velocity so moves are smooth.
+
+### The skills library
+
+Skills are saved tool-call sequences under `skills/*.json`, replayable with
+`run_skill`. The headline set is **7 taught poses captured by kinesthetic teaching**
+(`relax` → hand-pose the claw → `save_skill`, via `scripts/capture_pose.py`):
+`paper_pos_1`..`paper_pos_6` (six paper drop/pick positions) and `home_v2` (an
+alternate taught rest pose). On replay they land within roughly **1°** of the
+taught target. Plus `grab`/`release` (close/open the jaw), the `gripper_*` and
+`clearance_*` primitives, Cartesian nudges (`ee_x_plus_1cm`, …), and end-to-end
+demo skills (`home_reach_grab_home_demo`, `survey_blocks`, …).
+
+> The full motion vocabulary — joint directions, the FK/IK layers, calibration,
+> and validated grab routes — lives in **[docs/MOTIONS.md](./docs/MOTIONS.md)**.
 
 ### 1. Connect and calibrate the arm (once per session)
 
@@ -153,7 +230,21 @@ grant camera permission to the terminal app running the server and retry
 
 ### 2. Run the robot MCP server
 
-**Pick the transport by where the controlling agent runs:**
+The simplest path is the bundled launcher, run from a **camera-authorized
+terminal** so the wrist camera (index `0`) initializes:
+
+```bash
+bash scripts/run_robot.sh
+```
+
+It starts `cygnus.server` on the `so101` backend with the wrist camera (index 0)
+and an optional scene camera (index 1), serves streamable HTTP on
+`127.0.0.1:8000`, pulls the `server` / `robot` / `kinematics` extras (mcp +
+lerobot + placo), and mirrors logs to `outputs/server.log`. Override with
+`CYGNUS_PORT`, `CYGNUS_CAMERA` (`-1` = motion-only), `CYGNUS_SCENE_CAMERA`,
+`CYGNUS_HTTP_PORT`.
+
+To run it by hand and pick the transport by where the controlling agent runs:
 
 ```bash
 # (a) Agent runs on THIS laptop → stdio (the client spawns the server):
@@ -165,13 +256,11 @@ python -m cygnus.server --backend so101 --port <FOLLOWER_PORT> --id cygnus_follo
     --camera-index <ROBOT_CAMERA_INDEX> --transport http --host 0.0.0.0 --http-port 8000
 ```
 
-For the HTTP path, expose the laptop's port and register the public URL with your
-agent as an MCP server:
-
-```bash
-cloudflared tunnel --url http://localhost:8000      # → https://<id>.trycloudflare.com
-# then add  https://<id>.trycloudflare.com/mcp  as an MCP server to your agent
-```
+For a remote agent you can front the HTTP port with a cloudflared tunnel and
+register the public `/mcp` URL as an MCP server. **The tunnel is flaky**, so any
+agent running *on the same machine as the arm* should talk to `localhost`
+(`http://127.0.0.1:8000/mcp`) directly — that's what `scripts/capture_pose.py`
+and `scripts/smoke_mcp.py` do.
 
 ### 3. Two local agents sharing one arm (Claude Code + Codex)
 
@@ -195,7 +284,25 @@ codex  mcp add cygnus-robot --url http://127.0.0.1:8000/mcp
 Because the *server* process holds the camera, `look` returns images to **every**
 client regardless of that client app's own camera permission. Validate with
 `scripts/smoke_mcp.py --url http://127.0.0.1:8000/mcp` (read-only; add `--move
-home` only with a clear workspace).
+home` only with a clear workspace). To capture a new taught pose, limp the arm and
+save it with `scripts/capture_pose.py` (`relax-off` → hand-pose → `capture <name>`).
+
+### Operational learnings (real-arm sessions)
+
+- **12V power is required for the servos.** USB-C only powers the control board's
+  chip — the board enumerates over USB even with no servo power. No servo LED / a
+  silent bus = power or servo-chain cabling, not software.
+- **The wrist camera read-thread can go stale.** The so101 backend falls back to
+  joint-only state when a frame stalls, so `get_state` keeps working.
+- **The cloudflared tunnel (`cygnus.tedi.studio`) is flaky** — local agents should
+  use `localhost`, not the public URL.
+- **Servo Acceleration defaults to `254`** (snappy/jerky); `set_speed` lowers it
+  for smooth motion.
+- **`gripper.pos` is a percentage, not cm**: `~15` = closed, `~60` = open.
+- **`poses.HOME` is the canonical harness-rest pose** (`home` tool); `home_v2` is
+  an alternate live-taught rest pose kept as a skill.
+- **The wrist camera is mounted rotated ~90°** — never reason left/right from the
+  raw wrist frame; use the scene camera or Cartesian control.
 
 No hardware yet? Swap `--backend so101 --port ...` for `--backend sim` — the same
 tools run against the simulator. On real hardware, `look` returns the **camera
@@ -256,16 +363,25 @@ can be whatever language it already is.
 0.5.1, the MCP SDK, and the OpenAI SDK.
 
 **Working now:**
-- Robot **MCP server** (`cygnus.server`) — `get_capabilities`/`look`/`get_state`/
-  `move_to`/`grip`/`home`, over **stdio or streamable HTTP**; HTTP endpoint boots
-  and serves.
-- `SimBackend ⇄ SO101Backend` (one flag) + immutable safety guardrails.
+- Robot **MCP server** (`cygnus.server`) driving a **real SO-101 follower**, over
+  **stdio or streamable HTTP**. Full tool surface: perception
+  (`look`/`get_state`/`get_robot_model`/`get_joint_effects`/`detect_colored_blocks`),
+  Cartesian FK/IK (`get_ee_pose`/`move_ee_to`/`move_ee_by`, placo + bundled URDF),
+  joint control (`move_to`/`move_relative`), gripper (`set_gripper`/`grip`),
+  teaching/skills (`relax`/`save_skill`/`run_skill`/`list_skills`/`audit_skills`/
+  `run_sequence`), and pose/safety (`home`/`set_speed`/`wait_until_settled`/
+  table calibration).
+- `SimBackend ⇄ SO101Backend` (one flag) + immutable safety guardrails (joint
+  clamp, workspace bounds, motion lock for concurrent clients).
+- **Skills library** including 7 kinesthetically-taught poses (`paper_pos_1`..`6`
+  + `home_v2`), `grab`/`release`, and demo routines — validated to land within
+  ~1° of target on replay.
 - Self-contained `LocalBackend` cognition + the **antifragility loop** end-to-end
   in sim (`python -m cygnus demo`), with a passing test suite proving novel
   failures escalate once then become fast reflexes.
 
-**Next:** point the server at the real arm at the venue; wire the hosted (tedi)
-cognitive path; antifragility dashboard.
+**Next:** wire the hosted (tedi) cognitive path end-to-end on the real arm;
+antifragility dashboard.
 
 ## License
 

@@ -10,7 +10,7 @@ See [README.md](./README.md) for the concept.
 
 ```
    SO-101 arm  ──Python (LeRobot)──►  ROBOT MCP SERVER  (this repo)
-   motion USB-C + camera USB-C         tools: get_capabilities · look · move_to · grip · get_state · home
+   motion USB-C + 2 cameras            perception · joint + Cartesian · gripper · teaching/skills · safety
                                                 │  MCP
                                                 ▼
                           AGENT (System 2 reasoning)  +  COGNITIVE BACKEND
@@ -34,16 +34,21 @@ tool-call sequences.
 
 ## Robot MCP server — tool surface
 
-| Tool | Args | Returns | Notes |
-| --- | --- | --- | --- |
-| `get_capabilities` | – | tool contract + safety policy | read-only discovery for agents |
-| `look` | – | image + brief scene note | reads the USB-C OpenCV/UVC camera frame |
-| `get_state` | – | joint positions | `{shoulder_pan.pos, …, gripper.pos}` |
-| `move_to` | joint targets | new state | joint-space; clamped to safe limits |
-| `grip` | `open`/`close` | new state + grasp guess | |
-| `home` | – | new state | safe reset pose |
+The surface grew from the original 6 tools into layered groups. The full,
+authoritative list lives in **[README.md](./README.md)**; the layered motion
+vocabulary is in **[docs/MOTIONS.md](./docs/MOTIONS.md)**. Summary:
 
-**Immutable guardrails live in the server** (joint limits, workspace bounds,
+| Group | Tools |
+| --- | --- |
+| Perception | `get_capabilities` · `get_robot_model` · `get_state` · `look` · `get_joint_effects` · `detect_colored_blocks` |
+| Cartesian (FK/IK, placo + URDF) | `get_ee_pose` · `move_ee_to` · `move_ee_by` |
+| Joint | `move_to` · `move_relative` |
+| Gripper | `set_gripper` · `grip` |
+| Teaching / skills | `relax` · `save_skill` · `run_skill` · `list_skills` · `audit_skills` · `run_sequence` |
+| Pose / safety / calibration | `home` · `wait_until_settled` · `set_speed` · `fit_table_calibration` · `get_table_calibration` · `project_pixel_to_table` |
+
+**Immutable guardrails live in the server** (joint clamp, Cartesian workspace
+bounds + `check_ee_target`, a process-wide motion lock for concurrent clients,
 e-stop). The learning loop can add reflexes but can never relax a safety
 constraint — the anti-"misevolution" boundary. Actuation tools are annotated as
 physical-world/destructive MCP calls so Codex, Claude, and tedi can put human
@@ -89,7 +94,7 @@ CLI entry points: `lerobot-find-port`, `lerobot-find-cameras`, `lerobot-calibrat
 4. End-to-end in sim: goal → recall (miss) → reason → recover → store → re-run →
    recall (hit) → fast replay. **The antifragility loop works before hardware.**
 
-### Phase 1 — Connect the arm (~1–3 hrs, mostly cabling)
+### Phase 1 — Connect the arm (~1–3 hrs, mostly cabling) ✅ done
 > **⚠️ POWER:** Leader **5V**, Follower **12V** — wrong voltage destroys servos.
 > Use only the follower for the Cygnus demo. Motor-ID setup is pre-done on
 > hackathon arms (skip `lerobot-setup-motors`).
@@ -102,9 +107,11 @@ lerobot-find-cameras opencv # camera USB-C
 lerobot-calibrate --robot.type=so101_follower --robot.port=<FOLLOWER_PORT> --robot.id=cygnus_follower
 ```
 
-### Phase 2 — Point the server at the real arm
+### Phase 2 — Point the server at the real arm ✅ done
 Flip `SimBackend` → `SO101Backend` (port + id + camera index). Same agent loop
-now moves a real arm and sees through the robot camera:
+now moves a real arm and sees through the robot camera. Use the bundled launcher
+`bash scripts/run_robot.sh` (so101 backend, wrist cam 0 + scene cam 1, HTTP on
+`127.0.0.1:8000`), or by hand:
 
 ```bash
 python -m cygnus.server --backend so101 \

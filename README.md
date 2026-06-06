@@ -171,14 +171,29 @@ the structured scene only.
 The control board enumerated over USB (LeRobot connected fine), but **no servos
 answered the bus**. This is almost always power or cabling, not software:
 
-1. **12V power not on.** USB-C powers the board's chip, *not* the servos — the
-   board can connect while the motors are dead. Plug in the 12V DC supply and
-   confirm a power LED. (This is the most common cause of an empty motor list.)
+1. **Wrong voltage / no servo power.** USB-C powers the board's chip, *not* the
+   servos — the board enumerates over USB even with no (or wrong) servo power. If
+   the **5V** leader supply is plugged into the **12V** follower, the board lights
+   up but the servos can't run. Confirm the **12V** supply, fully seated, and look
+   for an **LED on the servos themselves** (no servo LED = no power reaching them).
 2. **Loose servo-chain cable.** Reseat the 3-pin cable from board→first servo and
    between each servo; one loose link reports the whole chain empty.
 3. **Board channel jumper** on the wrong setting — set it to the USB channel.
+4. **USB cable came loose.** Re-check the device still exists:
+   `ls /dev/cu.usbmodem* /dev/tty.usbmodem*`. A charge-only USB-C cable powers the
+   board but carries no data — use a known data cable.
 
-Fix the physical setup, then re-run the same calibrate command.
+**Settle software-vs-hardware deterministically** with a non-interactive baud
+sweep (no arm movement needed):
+
+```python
+from lerobot.motors.feetech.feetech import FeetechMotorsBus
+print(FeetechMotorsBus.scan_port("/dev/tty.usbmodemXXXX"))  # {baud: [motor_ids]}
+```
+
+If *any* baud lists motor IDs → it's a config/baud issue. If **all** bauds return
+empty, the bus is silent → it's power or the servo-chain cable, not software. Fix
+the physical setup, then re-run the calibrate command.
 
 ### Why Python (when the cognitive layer may be TypeScript)?
 

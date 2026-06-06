@@ -163,6 +163,23 @@ tools run against the simulator. On real hardware, `look` returns the **camera
 image** (for the agent's vision model) plus joint/scene state; in sim it returns
 the structured scene only.
 
+> **Tip — long commands:** end each line with `\` (backslash) so a wrapped paste
+> stays one command, e.g. `lerobot-calibrate \` then `  --robot.type=... \` etc.
+
+### Troubleshooting: `Missing motor IDs` / `found motor list: {}`
+
+The control board enumerated over USB (LeRobot connected fine), but **no servos
+answered the bus**. This is almost always power or cabling, not software:
+
+1. **12V power not on.** USB-C powers the board's chip, *not* the servos — the
+   board can connect while the motors are dead. Plug in the 12V DC supply and
+   confirm a power LED. (This is the most common cause of an empty motor list.)
+2. **Loose servo-chain cable.** Reseat the 3-pin cable from board→first servo and
+   between each servo; one loose link reports the whole chain empty.
+3. **Board channel jumper** on the wrong setting — set it to the USB channel.
+
+Fix the physical setup, then re-run the same calibrate command.
+
 ### Why Python (when the cognitive layer may be TypeScript)?
 
 Because **the SO-101's entire driver stack — LeRobot — is Python-only.** Talking

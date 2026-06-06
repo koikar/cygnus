@@ -20,16 +20,26 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 
 from .types import Plan
 
 SKILLS_DIR = Path(os.getenv("CYGNUS_SKILLS_DIR", "skills"))
+_SAFE_NAME = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def _validate_name(name: str) -> str:
+    """Reject names that could escape SKILLS_DIR (path traversal) — this is a
+    remotely-reachable write surface via the MCP tunnel."""
+    if not _SAFE_NAME.fullmatch(name or ""):
+        raise ValueError(f"skill name must match [A-Za-z0-9_-]+ (got {name!r})")
+    return name
 
 
 def _skill_json(name: str) -> Path:
-    return SKILLS_DIR / f"{name}.json"
+    return SKILLS_DIR / f"{_validate_name(name)}.json"
 
 
 def save_skill(name: str, steps: Plan, description: str = "", notes: str = "") -> dict:

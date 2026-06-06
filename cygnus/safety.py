@@ -27,8 +27,8 @@ def clamp_action(action: dict[str, float]) -> dict[str, float]:
         if key in JOINT_LIMITS:
             lo, hi = JOINT_LIMITS[key]
             safe[key] = max(lo, min(hi, float(value)))
-        else:
-            safe[key] = value
+        # Unknown keys are dropped, never forwarded — keeps a typo'd or injected
+        # joint name (a remotely-reachable actuation surface) off the motor bus.
     return safe
 
 

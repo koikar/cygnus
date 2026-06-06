@@ -486,7 +486,9 @@ def look(camera: str = "wrist", max_width: int = 512, quality: int = 55):
 def detect_colored_blocks(
     camera: str = "scene",
     min_area: float = 120.0,
+    max_area: float = 3000.0,
     max_results: int = 12,
+    roi: dict | None = None,
 ) -> dict:
     """Return simple color-blob target candidates from a camera frame.
 
@@ -511,7 +513,14 @@ def detect_colored_blocks(
         return {"camera": camera, "detections": [], "state": _obs_to_dict(obs)}
     return {
         "camera": selected_camera,
-        "detections": detect(frame, min_area=min_area, max_results=max_results),
+        "detections": detect(
+            frame,
+            min_area=min_area,
+            max_area=max_area,
+            max_results=max_results,
+            roi=roi,
+        ),
+        "roi": roi,
         "state": _obs_to_dict(obs),
     }
 

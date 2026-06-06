@@ -23,7 +23,14 @@ class ColorBlob:
         }
 
 
-def detect_colored_blocks(frame, *, min_area: float = 120.0, max_results: int = 12) -> list[dict]:
+def detect_colored_blocks(
+    frame,
+    *,
+    min_area: float = 120.0,
+    max_area: float = 3000.0,
+    max_results: int = 12,
+    roi: dict[str, int] | None = None,
+) -> list[dict]:
     """Detect saturated tabletop blocks by HSV color blobs.
 
     This is intentionally modest: it returns target candidates, not ground truth.
@@ -32,6 +39,18 @@ def detect_colored_blocks(frame, *, min_area: float = 120.0, max_results: int = 
     """
     import cv2
     import numpy as np
+
+    x_offset = 0
+    y_offset = 0
+    if roi:
+        h, w = frame.shape[:2]
+        x = max(0, min(w - 1, int(roi.get("x", 0))))
+        y = max(0, min(h - 1, int(roi.get("y", 0))))
+        width = max(1, min(w - x, int(roi.get("width", w - x))))
+        height = max(1, min(h - y, int(roi.get("height", h - y))))
+        frame = frame[y : y + height, x : x + width]
+        x_offset = x
+        y_offset = y
 
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     ranges = {
@@ -52,7 +71,7 @@ def detect_colored_blocks(frame, *, min_area: float = 120.0, max_results: int = 
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         for contour in contours:
             area = float(cv2.contourArea(contour))
-            if area < min_area:
+            if area < min_area or area > max_area:
                 continue
             x, y, w, h = cv2.boundingRect(contour)
             # Reject long skinny highlights/cables; blocks are compact-ish.
@@ -64,7 +83,14 @@ def detect_colored_blocks(frame, *, min_area: float = 120.0, max_results: int = 
                 continue
             cx = int(moments["m10"] / moments["m00"])
             cy = int(moments["m01"] / moments["m00"])
-            blobs.append(ColorBlob(label=label, center=(cx, cy), bbox=(x, y, w, h), area=area))
+            blobs.append(
+                ColorBlob(
+                    label=label,
+                    center=(cx + x_offset, cy + y_offset),
+                    bbox=(x + x_offset, y + y_offset, w, h),
+                    area=area,
+                )
+            )
 
     blobs.sort(key=lambda b: b.area, reverse=True)
     return [blob.as_dict() for blob in blobs[:max_results]]

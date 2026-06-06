@@ -443,6 +443,7 @@ def get_capabilities() -> dict:
             "move_ee_by": "Translate/rotate the gripper by a small Cartesian delta via IK.",
             "set_gripper": "Command a numeric gripper position.",
             "grip": "Open or close the gripper.",
+            "verify_grasp": "Twist the wrist to definitively check held vs empty (reliable gate).",
             "wait_until_settled": "Poll until the observed pose stops changing.",
             "run_sequence": "Execute an atomic multi-step tool sequence.",
             "home": "Return to the harness-rest pose with the wrist camera facing upward.",
@@ -759,6 +760,11 @@ def move_ee_to(
     current gripper orientation; pass ``wx/wy/wz`` to request a rotvec target.
     Large translations are clipped to ``max_step_m`` so agents can safely repeat
     the call instead of issuing a single large IK jump.
+
+    CAVEAT (live SO-101): Cartesian IK is **unreliable in the near-vertical,
+    wrist-down grasp configuration** used for tabletop picks — placo under-converges
+    and small deltas can return as no-ops (target == current). For tabletop work,
+    prefer joint-space ``move_to``/``move_relative`` and verify with ``get_state``.
     """
     with motion_lock(owner="move_ee_to"):
         return _move_ee_to(
@@ -795,8 +801,13 @@ def move_ee_by(
     """Translate/rotate the gripper by a small Cartesian delta using FK/IK.
 
     Position deltas are meters in the URDF base frame; rotation deltas are
-    radians added to the current rotation vector. This is the preferred tool for
-    approach/descend/lift moves because it avoids joint-space guessing.
+    radians added to the current rotation vector.
+
+    CAVEAT (live SO-101): unreliable in the near-vertical wrist-down grasp config —
+    placo IK under-converges there, so deltas may return as no-ops (the EE does not
+    actually move). It is **not** a dependable approach/descend/lift primitive for
+    tabletop picks; use joint-space ``move_relative`` and confirm with ``get_state``.
+    Cartesian control is fine in more open, mid-workspace poses.
     """
     with motion_lock(owner="move_ee_by"):
         return _move_ee_by(
@@ -836,6 +847,85 @@ def grip(mode: str) -> dict:
     """Open or close the gripper. ``mode`` is 'open' or 'close'."""
     with motion_lock(owner="grip"):
         return _grip_mode(mode)
+
+
+def _wrist_cube_blob() -> dict | None:
+    """Largest *compact* color blob in the wrist frame (the held object), or None.
+
+    Rejects elongated blobs (table tape / grid lines) by aspect ratio so the
+    object — not the workspace markings — is tracked across the twist.
+    """
+    from .vision import detect_colored_blocks as detect
+
+    obs = _backend().look()
+    frames = dict(obs.frames) if obs.frames else (
+        {"wrist": obs.frame} if obs.frame is not None else {}
+    )
+    frame = frames.get("wrist")
+    if frame is None and frames:
+        frame = next(iter(frames.values()))
+    if frame is None:
+        return None
+    best = None
+    for d in detect(frame, max_results=15):
+        bb = d.get("bbox", {})
+        w, h = bb.get("width", 1), bb.get("height", 1)
+        if max(w, h) / max(1, min(w, h)) > 3.0:  # elongated -> tape/grid line, not the cube
+            continue
+        if best is None or d["area_px"] > best["area_px"]:
+            best = d
+    return best
+
+
+@mcp.tool(annotations=_ACTUATE)
+def verify_grasp(twist_deg: float = 35.0, shift_threshold_px: float = 60.0) -> dict:
+    """Definitively check whether the gripper is HOLDING an object, via a wrist twist.
+
+    Neither ``gripper.pos`` nor a top-down wrist ``look`` distinguishes held from
+    empty for a small object: empty-close ~= held-close, and an object still on the
+    table directly below the lifted jaws still looks "between" them (the wrist cam
+    points down and moves with the claw). The trustworthy gate is a twist: rotate
+    ``wrist_roll`` by ``twist_deg`` and back, watching the largest wrist-cam blob.
+    A **held** object rotates *with* the jaws and barely shifts in-frame; a
+    **missed** object stays on the table while the camera sweeps, so its blob
+    shifts far (or vanishes).
+
+    Run right after close + lift. Uses the camera, so call it deliberately — it is
+    slower than state-only moves. Returns a verdict ("held" / "empty" / "uncertain")
+    with the measured pixel shift so the caller can apply its own judgement.
+    """
+    from . import poses
+
+    with motion_lock(owner="verify_grasp"):
+        state = _backend().get_observation().joints
+        grip_pos = state.get("gripper.pos", 999.0)
+        if grip_pos > poses.OPEN_GRIP * 0.6:  # jaws clearly open -> nothing to hold
+            return {"verdict": "empty", "reason": "gripper_open", "gripper_pos": round(grip_pos, 1)}
+        roll0 = state.get("wrist_roll.pos", 0.0)
+        before = _wrist_cube_blob()
+        _move_to({"wrist_roll.pos": roll0 + twist_deg}, timeout=3.0, tolerance=1.5)
+        after = _wrist_cube_blob()
+        _move_to({"wrist_roll.pos": roll0}, timeout=3.0, tolerance=1.5)  # untwist
+        if before is None or after is None:
+            return {
+                "verdict": "uncertain",
+                "reason": "no_blob_detected",
+                "before": before,
+                "after": after,
+                "gripper_pos": round(grip_pos, 1),
+            }
+        dx = after["center"]["x"] - before["center"]["x"]
+        dy = after["center"]["y"] - before["center"]["y"]
+        shift = (dx * dx + dy * dy) ** 0.5
+        return {
+            "verdict": "held" if shift <= shift_threshold_px else "empty",
+            "shift_px": round(shift, 1),
+            "threshold_px": shift_threshold_px,
+            "twist_deg": twist_deg,
+            "before_center": before["center"],
+            "after_center": after["center"],
+            "gripper_pos": round(grip_pos, 1),
+        }
 
 
 @mcp.tool(annotations=_READ_ONLY)

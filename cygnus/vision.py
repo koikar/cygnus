@@ -52,7 +52,10 @@ def detect_colored_blocks(
         x_offset = x
         y_offset = y
 
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    # LeRobot's OpenCV camera delivers RGB frames (not OpenCV's native BGR).
+    # Using BGR2HSV here swaps red/blue and mislabels a blue cube as "orange",
+    # which was observed live on the SO-101 wrist cam.
+    hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
     ranges = {
         "orange": [((5, 80, 50), (35, 255, 255))],
         "cyan": [((80, 60, 45), (105, 255, 255))],

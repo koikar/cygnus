@@ -99,24 +99,95 @@ uv pip install 'lerobot[feetech]' mcp openai
 
 # brew install ffmpeg   # macOS, if not already present
 
-# Connect the arm (mind the voltages!)
-lerobot-find-port                      # identify follower + leader serial ports
-lerobot-calibrate --robot.type=so101_follower --robot.port=<PORT> --robot.id=cygnus_follower
-lerobot-find-cameras opencv            # find your USB webcam index
-
-# Run Cygnus in simulation (no hardware needed) — coming in this repo:
-#   python -m cygnus.server --backend sim
+# Try the whole antifragility loop in simulation — no hardware, no API key:
+python -m cygnus demo
 ```
 
 See **[PLAN.md](./PLAN.md)** for the full build plan and phases.
 
 ---
 
+## Running the robot
+
+The robot's body is exposed as an **MCP server** (`cygnus.server`) with five tools
+— `look`, `get_state`, `move_to`, `grip`, `home`. A reasoning agent (your own, or
+a hosted cognitive kernel) connects over MCP and operates the arm. Safety limits
+are enforced on every `move_to` regardless of the caller.
+
+### 1. Connect and calibrate the arm (once per session)
+
+> **⚠️ Power:** Leader = **5V**, Follower = **12V**. Wrong voltage destroys
+> servos — verify before powering on. `Ctrl+C` is the e-stop.
+
+```bash
+lerobot-find-port      # plug in USB + correct power → note the follower port
+lerobot-calibrate --robot.type=so101_follower --robot.port=<FOLLOWER_PORT> --robot.id=cygnus_follower
+lerobot-find-cameras opencv   # enumerate cameras → note the arm's index
+```
+
+The arm has an **integrated camera** — that's what `look` uses. Run
+`lerobot-find-cameras opencv` to get its index and pass it with `--camera-index`
+(on a Mac the built-in FaceTime camera is usually index `0`, so the arm's camera
+is often `1`+). If it enumerates as a normal OpenCV/UVC device it works on macOS;
+if it's a depth/RealSense module it will **not** capture on macOS — verify which
+before the recording phase.
+
+### 2. Run the robot MCP server
+
+**Pick the transport by where the controlling agent runs:**
+
+```bash
+# (a) Agent runs on THIS laptop → stdio (the client spawns the server):
+python -m cygnus.server --backend so101 --port <FOLLOWER_PORT> --id cygnus_follower --transport stdio
+
+# (b) A REMOTE agent must reach the arm (e.g. a hosted brain) → streamable HTTP:
+python -m cygnus.server --backend so101 --port <FOLLOWER_PORT> --id cygnus_follower \
+    --transport http --host 0.0.0.0 --http-port 8000
+```
+
+For the HTTP path, expose the laptop's port and register the public URL with your
+agent as an MCP server:
+
+```bash
+cloudflared tunnel --url http://localhost:8000      # → https://<id>.trycloudflare.com
+# then add  https://<id>.trycloudflare.com/mcp  as an MCP server to your agent
+```
+
+No hardware yet? Swap `--backend so101 --port ...` for `--backend sim` — the same
+tools run against the simulator. On real hardware, `look` returns the **camera
+image** (for the agent's vision model) plus joint/scene state; in sim it returns
+the structured scene only.
+
+### Why Python (when the cognitive layer may be TypeScript)?
+
+Because **the SO-101's entire driver stack — LeRobot — is Python-only.** Talking
+to the Feetech bus servos, calibration, and camera capture all go through
+LeRobot's `SO101Follower`; there is no Node/TypeScript equivalent. So the process
+that *physically touches the arm* must be Python.
+
+That's not a constraint on anything else: **MCP is language-agnostic** (JSON-RPC
+over stdio/HTTP). A Python robot server and a TypeScript brain interoperate
+cleanly — bridging exactly this kind of language gap is what MCP is *for*. The
+arm is Python because the hardware demands it; everything above the MCP boundary
+can be whatever language it already is.
+
+---
+
 ## Status
 
-🚧 Early build. Environment verified on macOS (Apple Silicon, Python 3.12) with
-LeRobot 0.5.1, the MCP SDK, and the OpenAI SDK. Next: the robot MCP server with a
-simulator backend, then the agent loop and the antifragility dashboard.
+🚧 Active build. Verified on macOS (Apple Silicon, Python 3.12) with LeRobot
+0.5.1, the MCP SDK, and the OpenAI SDK.
+
+**Working now:**
+- Robot **MCP server** (`cygnus.server`) — `look`/`get_state`/`move_to`/`grip`/`home`,
+  over **stdio or streamable HTTP**; HTTP endpoint boots and serves.
+- `SimBackend ⇄ SO101Backend` (one flag) + immutable safety guardrails.
+- Self-contained `LocalBackend` cognition + the **antifragility loop** end-to-end
+  in sim (`python -m cygnus demo`), with a passing test suite proving novel
+  failures escalate once then become fast reflexes.
+
+**Next:** point the server at the real arm at the venue; wire the hosted (tedi)
+cognitive path; antifragility dashboard.
 
 ## License
 

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cygnus"
+version = "0.1.0"
+description = "Antifragile control layer for robot arms — robots that get stronger from rare failures."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Aaron Koivunen" }]
+# Core (sim + the antifragility demo) needs nothing beyond the stdlib.
+dependencies = []
+
+[project.optional-dependencies]
+server = ["mcp>=1.0"]                  # the robot MCP server (FastMCP)
+robot = ["lerobot[feetech]>=0.5.1"]    # the real SO-101 arm
+llm = ["openai>=1.0"]                  # online System-2 reasoner (Azure/OpenAI)
+dev = ["pytest>=8"]
+
+[project.scripts]
+cygnus = "cygnus.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["cygnus"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

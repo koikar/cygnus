@@ -18,8 +18,8 @@ never trigger an unexpected swing.
     python scripts/smoke_mcp.py --url http://localhost:8000/mcp --move home
     python scripts/smoke_mcp.py --url http://localhost:8000/mcp --move grip:open --move grip:close
     python scripts/smoke_mcp.py --url http://localhost:8000/mcp \
-        --expect-skill home_harness_rest_ceiling_cam \
-        --move skill:home_harness_rest_ceiling_cam
+        --expect-skill home \
+        --move skill:home
 """
 
 from __future__ import annotations
@@ -141,7 +141,7 @@ def main() -> None:
         default=[],
         metavar="TOOL[:ARG]",
         help="movement tool to run, e.g. 'home', 'grip:open', or "
-        "'skill:home_harness_rest_ceiling_cam' (repeatable). Omit for read-only.",
+        "'skill:home' (repeatable). Omit for read-only.",
     )
     ap.add_argument(
         "--require-tool",

@@ -92,19 +92,22 @@ def test_so101_joint_effects_ground_servo_degrees_in_claw_motion():
 
 def test_home_is_harness_rest_with_ceiling_camera_attitude():
     pytest.importorskip("placo")
+    # Single canonical home (live-taught), arm-only so homing never drops a carried
+    # object — the gripper is deliberately not part of HOME.
     assert poses.HOME == {
-        "shoulder_pan.pos": 0.0,
-        "shoulder_lift.pos": -45.0,
-        "elbow_flex.pos": 95.0,
-        "wrist_flex.pos": -70.0,
-        "wrist_roll.pos": 0.0,
-        "gripper.pos": 60.0,
+        "shoulder_pan.pos": 3.1,
+        "shoulder_lift.pos": -99.5,
+        "elbow_flex.pos": 96.7,
+        "wrist_flex.pos": 16.2,
+        "wrist_roll.pos": -96.8,
     }
+    assert "gripper.pos" not in poses.HOME
     pose = so101_kinematics().pose(poses.HOME)
 
-    # Folded back over the harness/base, not neutral-straight in front.
+    # Folded back over the harness/base (small x), elevated clear of the table
+    # (z well above the ~0 tabletop), not neutral-straight in front.
     assert pose.x < 0.28
-    assert pose.z > 0.14
+    assert pose.z > 0.08
 
 
 def test_tabletop_grab_skill_uses_wrist_flex_not_roll():

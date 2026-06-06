@@ -22,7 +22,7 @@ class SimBackend:
     name = "sim"
 
     def __init__(self, cube_zone: str = "A") -> None:
-        self.joints: dict[str, float] = dict(poses.HOME)
+        self.joints: dict[str, float] = {**poses.HOME, "gripper.pos": poses.OPEN_GRIP}
         self.cube_zone = cube_zone
         self.holding = False
         self.cube_in_bin = False
@@ -39,7 +39,7 @@ class SimBackend:
         """Start a fresh episode (optionally relocating the cube)."""
         if cube_zone is not None:
             self.cube_zone = cube_zone
-        self.joints = dict(poses.HOME)
+        self.joints = {**poses.HOME, "gripper.pos": poses.OPEN_GRIP}
         self.holding = False
         self.cube_in_bin = False
 
@@ -90,5 +90,5 @@ class SimBackend:
         return self.get_observation()
 
     def home(self) -> Observation:
-        self.joints = dict(poses.HOME)
+        self.joints.update(poses.HOME)  # arm-only: homing preserves the gripper state
         return self.get_observation()

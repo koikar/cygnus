@@ -28,11 +28,19 @@ def pose(
     return {f"{name}.pos": float(v) for name, v in zip(JOINTS, values)}
 
 
-# The physical resting pose: folded backward onto the harness/base area, with the
-# wrist camera pointed upward toward the ceiling. Validated on the live SO-101.
-# (An alternate live-taught rest pose is saved as the `home_v2` skill; changing
-# this canonical HOME requires re-validating the home→reach→grab→home demo.)
-HOME = pose(0, -45, 95, -70, grip=60)
+# The single canonical home: the live-taught rest pose, folded back over the
+# harness/base with the wrist camera pointed up and clear of the table. It is
+# ARM-ONLY (no gripper) on purpose — homing must never drop a carried object;
+# open/close the claw explicitly with `set_gripper` when you actually mean to.
+# The `home` tool and the `home` skill both target this exact pose; keep them in
+# sync (the skill audit enforces it).
+HOME = {
+    "shoulder_pan.pos": 3.1,
+    "shoulder_lift.pos": -99.5,
+    "elbow_flex.pos": 96.7,
+    "wrist_flex.pos": 16.2,
+    "wrist_roll.pos": -96.8,
+}
 
 # Cube pick locations. The arm's *habit* is trained for zone "A"; "B"/"C" are
 # the novel placements that constitute black swans for a blind habit.

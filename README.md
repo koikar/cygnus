@@ -195,11 +195,13 @@ never relax a limit):
 Skills are saved tool-call sequences under `skills/*.json`, replayable with
 `run_skill`. The headline set is **7 taught poses captured by kinesthetic teaching**
 (`relax` → hand-pose the claw → `save_skill`, via `scripts/capture_pose.py`):
-`paper_pos_1`..`paper_pos_6` (six paper drop/pick positions) and `home_v2` (an
-alternate taught rest pose). On replay they land within roughly **1°** of the
-taught target. Plus `grab`/`release` (close/open the jaw), the `gripper_*` and
-`clearance_*` primitives, Cartesian nudges (`ee_x_plus_1cm`, …), and end-to-end
-demo skills (`home_reach_grab_home_demo`, `survey_blocks`, …).
+`paper_pos_1`..`paper_pos_6` (six paper drop/pick positions) and `home` (the single
+canonical rest pose). On replay they land within roughly **1°** of the taught
+target. Skills are **tagged by `kind`** (position / pick / place / primitive / home
+/ perception / demo) and **composable** — `grab_at_N`/`drop_at_N` reference
+`paper_pos_N`, so re-teaching a position propagates everywhere. Plus `grab`/`release`
+(close/open the jaw) and demo skills (`home_reach_grab_home_demo`, `survey_blocks`).
+Early learning-phase probes are archived under `skills/_archive/`.
 
 > The full motion vocabulary — joint directions, the FK/IK layers, calibration,
 > and validated grab routes — lives in **[docs/MOTIONS.md](./docs/MOTIONS.md)**.
@@ -299,8 +301,8 @@ save it with `scripts/capture_pose.py` (`relax-off` → hand-pose → `capture <
 - **Servo Acceleration defaults to `254`** (snappy/jerky); `set_speed` lowers it
   for smooth motion.
 - **`gripper.pos` is a percentage, not cm**: `~15` = closed, `~60` = open.
-- **`poses.HOME` is the canonical harness-rest pose** (`home` tool); `home_v2` is
-  an alternate live-taught rest pose kept as a skill.
+- **`poses.HOME` is the single canonical harness-rest pose** — arm-only (no gripper)
+  so homing never drops a carried object; the `home` tool and `home` skill share it.
 - **The wrist camera is mounted rotated ~90°** — never reason left/right from the
   raw wrist frame; use the scene camera or Cartesian control.
 
@@ -374,7 +376,7 @@ can be whatever language it already is.
 - `SimBackend ⇄ SO101Backend` (one flag) + immutable safety guardrails (joint
   clamp, workspace bounds, motion lock for concurrent clients).
 - **Skills library** including 7 kinesthetically-taught poses (`paper_pos_1`..`6`
-  + `home_v2`), `grab`/`release`, and demo routines — validated to land within
+  + `home`), `grab`/`release`, and demo routines — validated to land within
   ~1° of target on replay.
 - Self-contained `LocalBackend` cognition + the **antifragility loop** end-to-end
   in sim (`python -m reflexos demo`), with a passing test suite proving novel

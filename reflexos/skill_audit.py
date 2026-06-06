@@ -9,7 +9,7 @@ from . import poses, skills
 from .safety import JOINT_LIMITS, is_within_limits
 
 REQUIRED_SKILLS = {
-    "home_harness_rest_ceiling_cam",
+    "home",
     "reach_forward_home_height_x044",
     "tabletop_grab_pose_flex_down",
     "tabletop_grab_flex_down_close_open",
@@ -120,9 +120,9 @@ def _audit_goal_skills(
     errors: list[str],
     warnings: list[str],
 ) -> None:
-    home = _first_target(loaded.get("home_harness_rest_ceiling_cam"))
+    home = _first_target(loaded.get("home"))
     if home and home != poses.HOME:
-        errors.append("home_harness_rest_ceiling_cam target differs from poses.HOME")
+        errors.append("home skill target differs from poses.HOME")
 
     grab = _first_target(loaded.get("tabletop_grab_pose_flex_down"))
     if grab:

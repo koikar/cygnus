@@ -17,8 +17,12 @@ fits, dropping down only when needed.
 | `gripper` | jaw | opens / closes the fingers | low = closed, high = open |
 
 > Directions are being mapped empirically and pinned here as confirmed. The wrist
-> camera is mounted rotated ~90°, so base-pan appears as *vertical* image motion —
-> never reason left/right from the raw wrist frame; use the scene cam or Cartesian.
+> camera is mounted rotated, looks straight down, and moves *with* the claw, so it
+> is disorienting for alignment and gives false "held" reads (see the grasp notes
+> below). On this rig the "scene" camera faces the **operator, not the table**, so
+> it is no help either, and Cartesian IK is unreliable in the grasp config. The
+> dependable approach is **joint-space** with a low, no-contact hover before the
+> descent — see *Adaptive self-correcting grab*.
 
 ## Live mapping notes (2026-06-06)
 
@@ -35,31 +39,38 @@ connected at `/dev/tty.usbmodem5A7C1215751`.
 | The gripper currently reads about `60` open and `15` closed. | Prefer `set_gripper(position)` while calibrating; `grip(open/close)` is only a preset wrapper. |
 | The cable frequently dominates the wrist image. | Do not let vision alignment chase the cable; use the scene camera or segmentation. |
 
+> **Correction (later in the session):** the "use the scene camera for alignment"
+> advice above did not pan out — the scene/laptop camera on this rig faces the
+> operator, not the table. Lateral alignment is done in joint space off a low,
+> no-contact wrist hover instead (see *Adaptive self-correcting grab*), and grasps
+> are confirmed with `verify_grasp` rather than any single-frame look.
+
 Avoid the stall-prone posture observed during early operation: elbow nearly
 straight (`elbow_flex` near `0`), high positive `shoulder_lift` (around `35`),
 and high `wrist_flex` (around `90`) near the table/cable. Recover by retracting:
 decrease `shoulder_lift`, increase `elbow_flex`, and decrease `wrist_flex`.
 
-## Foundational primitives learned first
+## Foundational primitives
 
-Before object work, teach and use these body-only motions:
+Current body-only motions worth keeping in working memory:
 
 | Skill | Meaning | Measured note |
 |---|---|---|
-| `home_harness_rest_ceiling_cam` | `shoulder_lift -45`, `elbow_flex +95`, `wrist_flex -70`, roll neutral, gripper open | The new physical `HOME`: arm folded backward onto the harness/base area, clear of the table, wrist camera looking at the ceiling. |
-| `clear_table_retract` | `shoulder_lift -18`, `elbow_flex +18`, `wrist_flex -28`, then settle | Current safe lift-away primitive when the claw is touching or nearly touching the table. |
-| `clearance_lift_small` | `shoulder_lift -8`, `elbow_flex +8`, `wrist_flex -10`, then settle | Use only after the claw is already visibly clear; this is a posture/retraction nudge, not a precise Cartesian lift. |
-| `clearance_lower_small` | inverse of `clearance_lift_small` | Use only to return from a known raised clearance pose; do not run near the table. |
-| `gripper_open` | `set_gripper(60)` | Actual open readings around `58..60`. |
-| `gripper_half_close` | `set_gripper(30)` | Actual half-close readings around `28..32`. |
-| `gripper_close` | `set_gripper(15)` | Actual closed readings around `16..17`. |
-| `grabbing_motion_practice` | open → 45 → 30 → close → 30 → 45 → open | No object required; use to verify jaw articulation before grasp attempts. |
+| `home` | the single canonical home (`poses.HOME`): `shoulder_pan 3.1`, `shoulder_lift -99.5`, `elbow_flex 96.7`, `wrist_flex 16.2`, `wrist_roll -96.8` | Arm folded back over the harness, wrist camera up, clear of the table. **Arm-only** — homing preserves the gripper so a carried object is not dropped. |
+| `grab` / `release` | `set_gripper(15)` / `set_gripper(60)` | Open ≈ `58..60`, closed ≈ `15..18`. For a small cube these readings are *ambiguous* between empty and held — confirm with `verify_grasp`. |
+| `reach_forward_home_height_x044` | reach forward at home height | Kept as a demo/validation waypoint. |
 
-Do **not** treat `move_ee_by(dz=+...)` as the default "lift away from table"
-primitive. Near the table, Cartesian `dz` coupled into sideways/wrist movement
-and caused contact. Lift away first with `clear_table_retract`; use Cartesian
-translation only once the claw is visibly clear, and always run: small nudge →
-settle → `get_ee_pose` → decide the next nudge.
+> Earlier learning-phase probes (`clear_table_retract`, `clearance_lift_small`,
+> `clearance_lower_small`, `gripper_open/half_close/close`, `grabbing_motion_practice`,
+> the `ee_x/ee_y_*cm` Cartesian nudges, and the old `home_harness_rest_ceiling_cam`
+> rest pose) were archived to `skills/_archive/` — recoverable via git but no longer
+> in the active library.
+
+Do **not** treat `move_ee_by(dz=+...)` as a "lift away from table" primitive.
+Cartesian IK under-converges in the near-vertical wrist-down config (deltas can
+return as no-ops), and near the table `dz` couples into sideways/wrist motion.
+Lift away in **joint space** (e.g. `move_relative({"shoulder_lift": -18, "elbow_flex": +18, "wrist_flex": -28})`)
+and confirm with `get_state`.
 
 ## Proprioception: degrees must mean millimeters
 
@@ -79,7 +90,7 @@ the arm barely moved. Use meaningful arm commands and tighter tolerances:
 | Proving shoulder/base motion | `move_relative({"shoulder_pan.pos": -18}, tolerance=1.0)` then return. |
 | Proving elbow/wrist motion | `move_relative({"elbow_flex.pos": -14, "wrist_flex.pos": 14}, tolerance=1.0)` from a clear pose. |
 | Small precise correction | Use `get_joint_effects`, choose a joint delta large enough to exceed tolerance, then re-read state. |
-| Near table | Run `clear_table_retract` first; do not test tiny Cartesian nudges against the tabletop. |
+| Near table | Lift away in joint space first (`move_relative({"shoulder_lift": -18, "elbow_flex": +18, "wrist_flex": -28})`); do not test tiny Cartesian nudges against the tabletop. |
 
 Live proof from the clear pose: a `shoulder_pan -18` command moved the base about
 `17.6°` and returned about `17.3°`; an `elbow_flex -14` / `wrist_flex +14`
@@ -110,12 +121,12 @@ Validation run: `outputs/body_learning/home_reach_grab_home_validation_log.json`
 The validated route is:
 
 ```text
-home_harness_rest_ceiling_cam
+home
 → reach_forward_home_height_x044
 → tabletop_grab_pose_flex_down
 → set_gripper(15)
 → set_gripper(60)
-→ home_harness_rest_ceiling_cam
+→ home
 ```
 
 Key snapshots:
@@ -350,7 +361,7 @@ jaws toward a cube on the lower-x ("left") side of the frame, ≈**36 px/deg**.
 Cartesian `move_ee_by` is **unreliable** in this near-vertical wrist config (IK
 under-converges; deltas return as no-ops) — servo in **joint space**.
 
-**Drift check.** `paper_pos_1..6` + `home_v2` replay to ≤1.8° (servo
+**Drift check.** `paper_pos_1..6` + `home` replay to ≤1.3° home-routed (servo
 repeatability). Re-run after any crash/relax to confirm the grounding poses
 haven't moved before trusting open-loop replays.
 

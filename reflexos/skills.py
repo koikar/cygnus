@@ -26,7 +26,7 @@ from typing import Any
 
 from .types import Plan
 
-SKILLS_DIR = Path(os.getenv("CYGNUS_SKILLS_DIR", "skills"))
+SKILLS_DIR = Path(os.getenv("REFLEXOS_SKILLS_DIR", "skills"))
 _SAFE_NAME = re.compile(r"^[A-Za-z0-9_-]+$")
 
 

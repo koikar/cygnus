@@ -9,7 +9,7 @@ bodies) operates as an MCP client. The mapping is:
     learn(signature, decision)   -> memory_learn + register_muscle_memory
 
 It is intentionally a thin, lazily-wired stub: configure the endpoint/key via
-``CYGNUS_HOSTED_MCP_URL`` / ``CYGNUS_HOSTED_API_KEY`` to enable it. Until the
+``REFLEXOS_HOSTED_MCP_URL`` / ``REFLEXOS_HOSTED_API_KEY`` to enable it. Until the
 session wiring is filled in, calls raise a clear, actionable error rather than
 failing silently — the demo and tests use ``LocalBackend``.
 """
@@ -26,11 +26,11 @@ class HostedBackend:
     name = "hosted"
 
     def __init__(self, mcp_url: Optional[str] = None, api_key: Optional[str] = None) -> None:
-        self.mcp_url = mcp_url or os.getenv("CYGNUS_HOSTED_MCP_URL")
-        self.api_key = api_key or os.getenv("CYGNUS_HOSTED_API_KEY")
+        self.mcp_url = mcp_url or os.getenv("REFLEXOS_HOSTED_MCP_URL")
+        self.api_key = api_key or os.getenv("REFLEXOS_HOSTED_API_KEY")
         if not self.mcp_url or not self.api_key:
             raise RuntimeError(
-                "HostedBackend needs CYGNUS_HOSTED_MCP_URL and CYGNUS_HOSTED_API_KEY. "
+                "HostedBackend needs REFLEXOS_HOSTED_MCP_URL and REFLEXOS_HOSTED_API_KEY. "
                 "Use the 'local' backend for offline runs."
             )
         # TODO: open the MCP client session here (mcp.client) and keep it warm.

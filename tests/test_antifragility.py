@@ -7,13 +7,13 @@ no escalation and lower cost. All episodes must still succeed.
 
 import pytest
 
-from cygnus import poses, skills
-from cygnus.cognition import build_cognition
-from cygnus.controller import Controller
-from cygnus.detector import BlackSwanDetector
-from cygnus.kinematics import so101_kinematics
-from cygnus.robot import SimBackend
-from cygnus.skill_audit import audit_skills
+from reflexos import poses, skills
+from reflexos.cognition import build_cognition
+from reflexos.controller import Controller
+from reflexos.detector import BlackSwanDetector
+from reflexos.kinematics import so101_kinematics
+from reflexos.robot import SimBackend
+from reflexos.skill_audit import audit_skills
 
 
 def run_scenario(scenario):

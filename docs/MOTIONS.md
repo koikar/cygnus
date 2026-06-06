@@ -1,4 +1,4 @@
-# Cygnus motion vocabulary
+# ReflexOS motion vocabulary
 
 The SO-101 follower has **6 motors**. Reliable operation comes from layering the
 right abstractions on top of them: raw joints → Cartesian end-effector → named
@@ -225,7 +225,7 @@ for small corrections; prefer Layer 2 for translations.
 ## Layer 2 — Cartesian end-effector control (the reliability unlock)
 
 Backed by LeRobot's FK/IK (`RobotKinematics`, placo + the vendored
-`cygnus/assets/so101/so101_kinematics.urdf`). This is the layer that makes
+`reflexos/assets/so101/so101_kinematics.urdf`). This is the layer that makes
 operation *reliable* — it removes the hand-eye guessing:
 
 | Tool | Meaning |
@@ -249,7 +249,7 @@ The server now enforces two guardrails around these tools:
 | Guardrail | Meaning |
 |---|---|
 | Motion lock | Only one actuation command or sequence may run at a time. Concurrent clients fail closed instead of interleaving motor commands. |
-| Workspace bounds | `move_ee_to` / `move_ee_by` targets must stay inside the configured base-frame `x/y/z` box, and `max_step_m` is capped by `CYGNUS_MAX_STEP_M`. |
+| Workspace bounds | `move_ee_to` / `move_ee_by` targets must stay inside the configured base-frame `x/y/z` box, and `max_step_m` is capped by `REFLEXOS_MAX_STEP_M`. |
 
 Use `get_capabilities()` or `get_robot_model()` to read the active bounds before
 planning. If a Cartesian target comes from vision, project it first and check

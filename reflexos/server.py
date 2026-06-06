@@ -14,10 +14,10 @@ Transport (``--transport``):
     with a tunnel (cloudflared/ngrok) and add that URL to the tedi.
 
     # local agent on this laptop:
-    python -m cygnus.server --backend so101 --port /dev/tty.usbmodemXXXX \
+    python -m reflexos.server --backend so101 --port /dev/tty.usbmodemXXXX \
         --camera-index 1 --transport stdio
     # reachable by a remote tedi:
-    python -m cygnus.server --backend so101 --port /dev/tty.usbmodemXXXX \
+    python -m reflexos.server --backend so101 --port /dev/tty.usbmodemXXXX \
         --camera-index 1 --transport http --host 0.0.0.0 --http-port 8000
 """
 
@@ -43,7 +43,7 @@ from .safety import (
 )
 from .types import Observation
 
-mcp = FastMCP("cygnus-robot")
+mcp = FastMCP("reflexos-robot")
 
 # MCP annotations are read by the consuming platform (e.g. a tedi's catalog scan)
 # to drive approval UX: read-only perception needs no gate; actuation moves
@@ -65,7 +65,7 @@ _robot: RobotBackend | None = None
 
 def _backend() -> RobotBackend:
     if _robot is None:
-        raise RuntimeError("robot backend not initialized; run via `python -m cygnus.server`")
+        raise RuntimeError("robot backend not initialized; run via `python -m reflexos.server`")
     return _robot
 
 
@@ -425,7 +425,7 @@ def _move_ee_by(
 def get_capabilities() -> dict:
     """Return the robot MCP contract and safety envelope."""
     return {
-        "name": "cygnus-robot",
+        "name": "reflexos-robot",
         "backend": _backend().name,
         "tools": {
             "look": "Capture the camera image plus current robot state.",
@@ -1182,10 +1182,10 @@ def run_skill(name: str) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Cygnus robot MCP server")
+    parser = argparse.ArgumentParser(description="ReflexOS robot MCP server")
     parser.add_argument("--backend", default="sim", choices=["sim", "so101"])
     parser.add_argument("--port", help="serial port for the SO-101 (so101 backend)")
-    parser.add_argument("--id", default="cygnus_follower", help="calibration id (so101 backend)")
+    parser.add_argument("--id", default="reflexos_follower", help="calibration id (so101 backend)")
     parser.add_argument(
         "--camera-index",
         type=int,
@@ -1212,7 +1212,7 @@ def main() -> None:
         default=[],
         metavar="HOST",
         help="public hostname this server is reachable at behind a tunnel "
-        "(e.g. cygnus.tedi.studio); repeatable. Added to the MCP DNS-rebinding "
+        "(e.g. reflexos.tedi.studio); repeatable. Added to the MCP DNS-rebinding "
         "allow-list so requests arriving with that Host header are accepted.",
     )
     args = parser.parse_args()
@@ -1239,7 +1239,7 @@ def main() -> None:
         mcp.settings.host = args.host
         mcp.settings.port = args.http_port
         if args.public_host:
-            # Behind a tunnel (e.g. cloudflared → cygnus.tedi.studio) the request
+            # Behind a tunnel (e.g. cloudflared → reflexos.tedi.studio) the request
             # arrives with the public Host header, which DNS-rebinding protection
             # blocks by default. Allow the named hosts while keeping localhost.
             from mcp.server.transport_security import TransportSecuritySettings

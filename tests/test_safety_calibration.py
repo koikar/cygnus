@@ -5,9 +5,9 @@ import threading
 import numpy as np
 import pytest
 
-from cygnus.calibration import TableCalibration, fit
-from cygnus.motion_lock import MotionBusy, current_owner, motion_lock
-from cygnus.safety import check_ee_target, clamp_action, within_workspace
+from reflexos.calibration import TableCalibration, fit
+from reflexos.motion_lock import MotionBusy, current_owner, motion_lock
+from reflexos.safety import check_ee_target, clamp_action, within_workspace
 
 
 # --- safety supervisor -----------------------------------------------------
@@ -59,8 +59,8 @@ def test_motion_lock_allows_nested_motion_helpers_same_thread():
 
 
 def test_server_ee_target_fails_closed_outside_workspace(monkeypatch):
-    from cygnus import server
-    from cygnus.robot.sim import SimBackend
+    from reflexos import server
+    from reflexos.robot.sim import SimBackend
 
     robot = SimBackend()
     robot.connect()
@@ -71,7 +71,7 @@ def test_server_ee_target_fails_closed_outside_workspace(monkeypatch):
 
 
 def test_server_calibration_tools_project_safe_table_targets(monkeypatch, tmp_path):
-    from cygnus import calibration, server
+    from reflexos import calibration, server
 
     monkeypatch.setattr(calibration, "CALIB_DIR", tmp_path)
     correspondences = [
@@ -93,7 +93,7 @@ def test_server_calibration_tools_project_safe_table_targets(monkeypatch, tmp_pa
 
 
 def test_so101_observation_falls_back_to_joints_when_camera_is_stale():
-    from cygnus.robot.so101 import SO101Backend
+    from reflexos.robot.so101 import SO101Backend
 
     class Bus:
         def sync_read(self, key):

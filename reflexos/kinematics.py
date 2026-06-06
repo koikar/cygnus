@@ -1,7 +1,7 @@
 """SO-101 end-effector kinematics.
 
 This wraps LeRobot's placo-backed ``RobotKinematics`` behind a small local API
-that speaks Cygnus joint dictionaries. Imports stay lazy so the simulator and
+that speaks ReflexOS joint dictionaries. Imports stay lazy so the simulator and
 tests do not require the hardware stack.
 """
 

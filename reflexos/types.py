@@ -1,4 +1,4 @@
-"""Core data types shared across Cygnus.
+"""Core data types shared across ReflexOS.
 
 Joint and action keys follow the LeRobot convention ``"<joint>.pos"`` so the
 same dicts flow unchanged between the simulator, the real SO-101 backend, and

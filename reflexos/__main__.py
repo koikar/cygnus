@@ -1,7 +1,7 @@
-"""Cygnus CLI.
+"""ReflexOS CLI.
 
-    python -m cygnus demo      # run the offline antifragility demo (no hardware)
-    python -m cygnus server    # run the robot MCP server (see cygnus.server for flags)
+    python -m reflexos demo      # run the offline antifragility demo (no hardware)
+    python -m reflexos server    # run the robot MCP server (see reflexos.server for flags)
 """
 
 from __future__ import annotations

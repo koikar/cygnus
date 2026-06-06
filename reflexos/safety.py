@@ -58,12 +58,12 @@ def sanitize_call(call: ToolCall) -> ToolCall:
 import os as _os  # noqa: E402
 
 WORKSPACE_BOUNDS: dict[str, tuple[float, float]] = {
-    "x": (float(_os.getenv("CYGNUS_WS_XMIN", "0.08")), float(_os.getenv("CYGNUS_WS_XMAX", "0.46"))),
-    "y": (float(_os.getenv("CYGNUS_WS_YMIN", "-0.28")), float(_os.getenv("CYGNUS_WS_YMAX", "0.28"))),
-    "z": (float(_os.getenv("CYGNUS_WS_ZMIN", "-0.10")), float(_os.getenv("CYGNUS_WS_ZMAX", "0.38"))),
+    "x": (float(_os.getenv("REFLEXOS_WS_XMIN", "0.08")), float(_os.getenv("REFLEXOS_WS_XMAX", "0.46"))),
+    "y": (float(_os.getenv("REFLEXOS_WS_YMIN", "-0.28")), float(_os.getenv("REFLEXOS_WS_YMAX", "0.28"))),
+    "z": (float(_os.getenv("REFLEXOS_WS_ZMIN", "-0.10")), float(_os.getenv("REFLEXOS_WS_ZMAX", "0.38"))),
 }
 # Largest Cartesian step (metres) any single EE move may command.
-MAX_STEP_M: float = float(_os.getenv("CYGNUS_MAX_STEP_M", "0.05"))
+MAX_STEP_M: float = float(_os.getenv("REFLEXOS_MAX_STEP_M", "0.05"))
 
 
 def within_workspace(x: float, y: float, z: float) -> bool:

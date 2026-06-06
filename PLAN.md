@@ -1,4 +1,4 @@
-# Cygnus — Build Plan
+# ReflexOS — Build Plan
 
 Hackathon build plan for an **antifragile control layer for the SO-101 robot arm**,
 exposed as an MCP server and driven by a reasoning model with a learning loop.
@@ -69,7 +69,7 @@ from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
 
 robot = SO101Follower(SO101FollowerConfig(
     port="/dev/tty.usbmodemXXXX",       # from lerobot-find-port
-    id="cygnus_follower",                # must match the calibration id
+    id="reflexos_follower",                # must match the calibration id
     max_relative_target=None,            # built-in safety clamp (set a cap for guardrails)
     cameras={"front": OpenCVCameraConfig(index_or_path=0, width=640, height=480, fps=30)},
 ))
@@ -96,7 +96,7 @@ CLI entry points: `lerobot-find-port`, `lerobot-find-cameras`, `lerobot-calibrat
 
 ### Phase 1 — Connect the arm (~1–3 hrs, mostly cabling) ✅ done
 > **⚠️ POWER:** Leader **5V**, Follower **12V** — wrong voltage destroys servos.
-> Use only the follower for the Cygnus demo. Motor-ID setup is pre-done on
+> Use only the follower for the ReflexOS demo. Motor-ID setup is pre-done on
 > hackathon arms (skip `lerobot-setup-motors`).
 > `Ctrl+C` to e-stop; if joints lock, unplug power, wait, replug. Use one
 > consistent `--robot.id` across calibrate + runtime.
@@ -104,7 +104,7 @@ CLI entry points: `lerobot-find-port`, `lerobot-find-cameras`, `lerobot-calibrat
 ```bash
 lerobot-find-port           # motion board USB-C
 lerobot-find-cameras opencv # camera USB-C
-lerobot-calibrate --robot.type=so101_follower --robot.port=<FOLLOWER_PORT> --robot.id=cygnus_follower
+lerobot-calibrate --robot.type=so101_follower --robot.port=<FOLLOWER_PORT> --robot.id=reflexos_follower
 ```
 
 ### Phase 2 — Point the server at the real arm ✅ done
@@ -114,9 +114,9 @@ now moves a real arm and sees through the robot camera. Use the bundled launcher
 `127.0.0.1:8000`), or by hand:
 
 ```bash
-python -m cygnus.server --backend so101 \
+python -m reflexos.server --backend so101 \
   --port <FOLLOWER_PORT> \
-  --id cygnus_follower \
+  --id reflexos_follower \
   --camera-index <ROBOT_CAMERA_INDEX> \
   --transport http --host 0.0.0.0 --http-port 8000
 ```

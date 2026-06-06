@@ -711,7 +711,7 @@ wheels = [
 ]
 
 [[package]]
-name = "cygnus"
+name = "reflexos"
 version = "0.1.0"
 source = { editable = "." }
 

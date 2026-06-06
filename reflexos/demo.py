@@ -6,7 +6,7 @@ escalates to System-2 and learns; every repeat is then a fast System-1 recall.
 The printed table and curve show escalations — and total cost — falling: the
 robot getting *stronger* from rare failures.
 
-    python -m cygnus demo
+    python -m reflexos demo
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ def _bar(total_calls: int) -> str:
 
 def render(results: list[EpisodeResult]) -> str:
     lines: list[str] = []
-    lines.append("Cygnus — antifragility demo (simulated SO-101)\n")
+    lines.append("ReflexOS — antifragility demo (simulated SO-101)\n")
     header = f"{'ep':>2}  {'cube':<5} {'mode':<7} {'swan':<5} {'ok':<3} {'cost':>4}  cost"
     lines.append(header)
     lines.append("-" * len(header))

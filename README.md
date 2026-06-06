@@ -1,4 +1,4 @@
-# Cygnus 🦢
+# ReflexOS 🦢
 
 **An antifragile control layer for robot arms — robots that get *stronger* from rare failures.**
 
@@ -13,7 +13,7 @@ fail catastrophically the first time reality hands them something they've never
 seen — an object in an unexpected spot, a missed grasp, a stalled joint. Those
 rare, high-impact, unforeseen events are **black swans**.
 
-Cygnus makes a robot arm **antifragile** — it doesn't just survive black swans,
+ReflexOS makes a robot arm **antifragile** — it doesn't just survive black swans,
 it gets *better* from them:
 
 1. **System 1 (fast reflex):** routine motions run instantly as validated,
@@ -37,7 +37,7 @@ rate fall over episodes. The robot literally improves from disorder.
 
 ## Architecture — the arm is an MCP server
 
-Cygnus turns the robot arm into a **[Model Context Protocol](https://modelcontextprotocol.io)
+ReflexOS turns the robot arm into a **[Model Context Protocol](https://modelcontextprotocol.io)
 (MCP) server**: its body is exposed as a surface of **safe primitives** (perceive,
 move in joint- or task-space, grip) plus **saved skills** (validated, replayable
 tool-call sequences). Any MCP-speaking agent can then *operate* the arm the same
@@ -86,8 +86,8 @@ writes** are allowed to be slow.
 - **[SO-101](https://github.com/TheRobotStudio/SO-ARM100)** open-source arm
   (leader + follower pair), driven by **[Hugging Face LeRobot](https://github.com/huggingface/lerobot)**.
 - A **USB-C OpenCV/UVC camera** for vision (`look`). The camera is a separate
-  USB device from the Feetech motion bus; Cygnus unifies both behind one MCP
-  server. *(Note: Intel RealSense is not supported on macOS — Cygnus uses
+  USB device from the Feetech motion bus; ReflexOS unifies both behind one MCP
+  server. *(Note: Intel RealSense is not supported on macOS — ReflexOS uses
   OpenCV/USB cameras and needs no dataset recording for the core demo, so it
   runs on a Mac.)*
 - **⚠️ Power:** Leader = **5V**, Follower = **12V**. Wrong voltage permanently
@@ -110,7 +110,7 @@ uv pip install 'lerobot[feetech]' mcp openai
 # brew install ffmpeg   # macOS, if not already present
 
 # Try the whole antifragility loop in simulation — no hardware, no API key:
-python -m cygnus demo
+python -m reflexos demo
 ```
 
 See **[PLAN.md](./PLAN.md)** for the full build plan and phases.
@@ -119,7 +119,7 @@ See **[PLAN.md](./PLAN.md)** for the full build plan and phases.
 
 ## Running the robot
 
-The robot's body is exposed as an **MCP server** (`cygnus.server`). A reasoning
+The robot's body is exposed as an **MCP server** (`reflexos.server`). A reasoning
 agent (Codex, Claude, or a hosted tedi) connects over MCP and operates the arm by
 composing these primitives and recalling saved skills. Safety limits are enforced
 on every motion regardless of the caller, and actuation tools are annotated as
@@ -184,7 +184,7 @@ never relax a limit):
   range; unknown/typo'd joint keys are dropped, never forwarded to the bus.
 - **Workspace bounds + `check_ee_target`**: Cartesian targets must stay inside the
   base-frame box (default `x 0.08–0.46`, `y ±0.28`, `z −0.10–0.38` m); single EE
-  steps are capped (`CYGNUS_MAX_STEP_M`, default `0.05` m).
+  steps are capped (`REFLEXOS_MAX_STEP_M`, default `0.05` m).
 - **Motion lock**: one process-wide actuation lock serializes motion across
   concurrent clients (Claude + Codex + tedis share one arm) — callers wait, then
   fail closed with `MotionBusy` rather than interleaving motor commands.
@@ -211,7 +211,7 @@ demo skills (`home_reach_grab_home_demo`, `survey_blocks`, …).
 
 **You only need the follower** (the executor — the arm with the gripper). The
 leader is a hand-puppet for teleoperation and for recording ACT/SmolVLA training
-demos; Cygnus drives the follower directly via the MCP tools and trains nothing,
+demos; ReflexOS drives the follower directly via the MCP tools and trains nothing,
 so the leader is unused. One arm, one 12V supply, one USB-C — no 5V/12V mix-up.
 
 Validate the two USB devices separately first:
@@ -219,7 +219,7 @@ Validate the two USB devices separately first:
 ```bash
 lerobot-find-port      # motion board: plug in USB-C + 12V power → note the follower port
 lerobot-find-cameras opencv   # camera: enumerate OpenCV devices → note the robot camera index
-lerobot-calibrate --robot.type=so101_follower --robot.port=<FOLLOWER_PORT> --robot.id=cygnus_follower
+lerobot-calibrate --robot.type=so101_follower --robot.port=<FOLLOWER_PORT> --robot.id=reflexos_follower
 ```
 
 The camera is already connected by USB-C; `look` uses the OpenCV index selected
@@ -237,22 +237,22 @@ terminal** so the wrist camera (index `0`) initializes:
 bash scripts/run_robot.sh
 ```
 
-It starts `cygnus.server` on the `so101` backend with the wrist camera (index 0)
+It starts `reflexos.server` on the `so101` backend with the wrist camera (index 0)
 and an optional scene camera (index 1), serves streamable HTTP on
 `127.0.0.1:8000`, pulls the `server` / `robot` / `kinematics` extras (mcp +
 lerobot + placo), and mirrors logs to `outputs/server.log`. Override with
-`CYGNUS_PORT`, `CYGNUS_CAMERA` (`-1` = motion-only), `CYGNUS_SCENE_CAMERA`,
-`CYGNUS_HTTP_PORT`.
+`REFLEXOS_PORT`, `REFLEXOS_CAMERA` (`-1` = motion-only), `REFLEXOS_SCENE_CAMERA`,
+`REFLEXOS_HTTP_PORT`.
 
 To run it by hand and pick the transport by where the controlling agent runs:
 
 ```bash
 # (a) Agent runs on THIS laptop → stdio (the client spawns the server):
-python -m cygnus.server --backend so101 --port <FOLLOWER_PORT> --id cygnus_follower \
+python -m reflexos.server --backend so101 --port <FOLLOWER_PORT> --id reflexos_follower \
     --camera-index <ROBOT_CAMERA_INDEX> --transport stdio
 
 # (b) A REMOTE agent must reach the arm (e.g. a hosted brain) → streamable HTTP:
-python -m cygnus.server --backend so101 --port <FOLLOWER_PORT> --id cygnus_follower \
+python -m reflexos.server --backend so101 --port <FOLLOWER_PORT> --id reflexos_follower \
     --camera-index <ROBOT_CAMERA_INDEX> --transport http --host 0.0.0.0 --http-port 8000
 ```
 
@@ -268,17 +268,17 @@ The SO-101 serial port has a **single owner** — only one process can hold it.
 So when more than one client should drive the arm, run **one** HTTP server (it
 owns the serial bus and the camera) and point every client at it. Do **not**
 register the arm as a `stdio` server in two clients: each would spawn its own
-`cygnus.server`, and they'd collide on the port.
+`reflexos.server`, and they'd collide on the port.
 
 ```bash
 # 1. ONE server, launched from a camera-authorized terminal so --camera-index 0 works.
 #    (If the launching app lacks camera permission, use --camera-index -1 = motion-only.)
-python -m cygnus.server --backend so101 --port <FOLLOWER_PORT> --id cygnus_follower \
+python -m reflexos.server --backend so101 --port <FOLLOWER_PORT> --id reflexos_follower \
     --camera-index 0 --transport http --host 127.0.0.1 --http-port 8000
 
 # 2. Register the same URL with each client:
-claude mcp add --transport http cygnus-robot http://127.0.0.1:8000/mcp
-codex  mcp add cygnus-robot --url http://127.0.0.1:8000/mcp
+claude mcp add --transport http reflexos-robot http://127.0.0.1:8000/mcp
+codex  mcp add reflexos-robot --url http://127.0.0.1:8000/mcp
 ```
 
 Because the *server* process holds the camera, `look` returns images to **every**
@@ -294,7 +294,7 @@ save it with `scripts/capture_pose.py` (`relax-off` → hand-pose → `capture <
   silent bus = power or servo-chain cabling, not software.
 - **The wrist camera read-thread can go stale.** The so101 backend falls back to
   joint-only state when a frame stalls, so `get_state` keeps working.
-- **The cloudflared tunnel (`cygnus.tedi.studio`) is flaky** — local agents should
+- **The cloudflared tunnel (`reflexos.tedi.studio`) is flaky** — local agents should
   use `localhost`, not the public URL.
 - **Servo Acceleration defaults to `254`** (snappy/jerky); `set_speed` lowers it
   for smooth motion.
@@ -363,7 +363,7 @@ can be whatever language it already is.
 0.5.1, the MCP SDK, and the OpenAI SDK.
 
 **Working now:**
-- Robot **MCP server** (`cygnus.server`) driving a **real SO-101 follower**, over
+- Robot **MCP server** (`reflexos.server`) driving a **real SO-101 follower**, over
   **stdio or streamable HTTP**. Full tool surface: perception
   (`look`/`get_state`/`get_robot_model`/`get_joint_effects`/`detect_colored_blocks`),
   Cartesian FK/IK (`get_ee_pose`/`move_ee_to`/`move_ee_by`, placo + bundled URDF),
@@ -377,7 +377,7 @@ can be whatever language it already is.
   + `home_v2`), `grab`/`release`, and demo routines — validated to land within
   ~1° of target on replay.
 - Self-contained `LocalBackend` cognition + the **antifragility loop** end-to-end
-  in sim (`python -m cygnus demo`), with a passing test suite proving novel
+  in sim (`python -m reflexos demo`), with a passing test suite proving novel
   failures escalate once then become fast reflexes.
 
 **Next:** wire the hosted (tedi) cognitive path end-to-end on the real arm;

@@ -27,7 +27,7 @@ class SO101Backend:
     def __init__(
         self,
         port: str,
-        id: str = "cygnus_follower",
+        id: str = "reflexos_follower",
         camera_index: int = 0,
         scene_camera_index: int = -1,
         width: int = 640,

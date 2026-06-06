@@ -20,7 +20,7 @@ from pathlib import Path
 
 import numpy as np
 
-CALIB_DIR = Path(os.getenv("CYGNUS_CALIB_DIR", "calibration"))
+CALIB_DIR = Path(os.getenv("REFLEXOS_CALIB_DIR", "calibration"))
 
 
 def _solve_homography(src: np.ndarray, dst: np.ndarray) -> np.ndarray:

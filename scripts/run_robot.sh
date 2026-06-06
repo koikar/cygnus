@@ -13,6 +13,14 @@ cd "$(dirname "$0")/.."
 mkdir -p outputs
 export PYTHONUNBUFFERED=1
 
+# Kill any stale cygnus.server still holding the port, so a fresh build never gets
+# shadowed by an old process bound to :8000. (Matches the python process argv, not
+# this launcher.)
+if pkill -f "cygnus\.server" 2>/dev/null; then
+  echo "Stopped a previous cygnus.server instance"
+  sleep 1
+fi
+
 PORT="${CYGNUS_PORT:-/dev/tty.usbmodem5A7C1215751}"
 CAM="${CYGNUS_CAMERA:-0}"            # wrist (eye-in-hand) camera; -1 = motion-only
 SCENE_CAM="${CYGNUS_SCENE_CAMERA:-1}"  # distant/3rd-person camera; -1 = disable

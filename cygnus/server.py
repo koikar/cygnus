@@ -99,12 +99,18 @@ def get_state() -> dict:
     return _obs_to_dict(_backend().get_observation())
 
 
-def _encode_jpeg(frame) -> bytes | None:
-    """Encode an OpenCV/ndarray frame to JPEG bytes; None if it can't be encoded."""
+def _encode_jpeg(frame, max_width: int = 512, quality: int = 55) -> bytes | None:
+    """Encode an ndarray frame to a COMPACT JPEG: downscaled to ``max_width`` and
+    quality-capped so multi-camera `look` responses stay small enough to traverse
+    a tunnel (and encode fast enough to avoid origin timeouts)."""
     try:
         import cv2
 
-        ok, buf = cv2.imencode(".jpg", frame)
+        h, w = frame.shape[:2]
+        if w > max_width:
+            new_h = int(h * (max_width / w))
+            frame = cv2.resize(frame, (max_width, new_h))
+        ok, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
         return buf.tobytes() if ok else None
     except Exception:
         return None

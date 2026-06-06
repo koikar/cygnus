@@ -49,6 +49,72 @@ def test_motion_lock_serializes_concurrent_clients():
     assert current_owner() is None
 
 
+def test_motion_lock_allows_nested_motion_helpers_same_thread():
+    with motion_lock(owner="outer", timeout=1.0):
+        assert current_owner() == "outer"
+        with motion_lock(owner="inner", timeout=1.0):
+            assert current_owner() == "inner"
+        assert current_owner() == "outer"
+    assert current_owner() is None
+
+
+def test_server_ee_target_fails_closed_outside_workspace(monkeypatch):
+    from cygnus import server
+    from cygnus.robot.sim import SimBackend
+
+    robot = SimBackend()
+    robot.connect()
+    monkeypatch.setattr(server, "_robot", robot)
+
+    with pytest.raises(ValueError, match="outside the safe workspace"):
+        server.move_ee_to(x=0.90, y=0.0, z=0.20)
+
+
+def test_server_calibration_tools_project_safe_table_targets(monkeypatch, tmp_path):
+    from cygnus import calibration, server
+
+    monkeypatch.setattr(calibration, "CALIB_DIR", tmp_path)
+    correspondences = [
+        {"pixel": [100, 100], "table": [0.20, -0.10]},
+        {"pixel": [300, 100], "table": [0.40, -0.10]},
+        {"pixel": [300, 300], "table": [0.40, 0.10]},
+        {"pixel": [100, 300], "table": [0.20, 0.10]},
+    ]
+
+    fitted = server.fit_table_calibration(correspondences, table_z=-0.04, camera="scene")
+    assert fitted["samples"] == 4
+    assert (tmp_path / "scene.json").exists()
+
+    projected = server.project_pixel_to_table(200, 200, camera="scene")
+    assert projected["workspace_ok"] is True
+    assert projected["table_target"]["z"] == -0.04
+    assert abs(projected["table_target"]["x"] - 0.30) < 1e-6
+    assert abs(projected["table_target"]["y"]) < 1e-6
+
+
+def test_so101_observation_falls_back_to_joints_when_camera_is_stale():
+    from cygnus.robot.so101 import SO101Backend
+
+    class Bus:
+        def sync_read(self, key):
+            assert key == "Present_Position"
+            return {"shoulder_pan": 1.0, "gripper": 60.0}
+
+    class Robot:
+        bus = Bus()
+
+        def get_observation(self):
+            raise RuntimeError("OpenCVCamera(0) latest frame is too old")
+
+    backend = SO101Backend(port="/dev/null")
+    backend._robot = Robot()
+    obs = backend.get_observation()
+
+    assert obs.joints == {"shoulder_pan.pos": 1.0, "gripper.pos": 60.0}
+    assert obs.frames == {}
+    assert "camera unavailable/stale" in obs.note
+
+
 # --- camera→table calibration ---------------------------------------------
 def test_calibration_homography_roundtrip():
     H_true = np.array([[1.2, 0.10, 30.0], [0.05, 1.10, -20.0], [3e-4, 2e-4, 1.0]])

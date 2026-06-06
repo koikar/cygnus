@@ -1,0 +1,83 @@
+{
+  "name": "home_reach_grab_home_demo",
+  "description": "Validated demo route: harness-rest home, stretch forward, move to flex-down tabletop grab pose, close/open gripper, return home.",
+  "notes": "Run only with the current tabletop layout clear. Home camera points at ceiling; grab uses wrist_flex, not wrist_roll.",
+  "steps": [
+    {
+      "tool": "move_to",
+      "args": {
+        "target": {
+          "shoulder_pan.pos": 0.0,
+          "shoulder_lift.pos": -45.0,
+          "elbow_flex.pos": 95.0,
+          "wrist_flex.pos": -70.0,
+          "wrist_roll.pos": 0.0,
+          "gripper.pos": 60.0
+        },
+        "timeout": 7.0,
+        "tolerance": 2.0
+      }
+    },
+    {
+      "tool": "move_to",
+      "args": {
+        "target": {
+          "shoulder_pan.pos": 0.0,
+          "shoulder_lift.pos": 30.4,
+          "elbow_flex.pos": -43.1,
+          "wrist_flex.pos": 12.7,
+          "wrist_roll.pos": 0.0,
+          "gripper.pos": 60.0
+        },
+        "timeout": 5.0,
+        "tolerance": 2.0
+      }
+    },
+    {
+      "tool": "move_to",
+      "args": {
+        "target": {
+          "shoulder_pan.pos": 0.0,
+          "shoulder_lift.pos": 20.0,
+          "elbow_flex.pos": -5.0,
+          "wrist_flex.pos": 35.0,
+          "wrist_roll.pos": 0.0,
+          "gripper.pos": 60.0
+        },
+        "timeout": 6.0,
+        "tolerance": 2.0
+      }
+    },
+    {
+      "tool": "set_gripper",
+      "args": {
+        "position": 15,
+        "timeout": 2.0,
+        "tolerance": 2.0
+      }
+    },
+    {
+      "tool": "set_gripper",
+      "args": {
+        "position": 60,
+        "timeout": 2.0,
+        "tolerance": 2.0
+      }
+    },
+    {
+      "tool": "move_to",
+      "args": {
+        "target": {
+          "shoulder_pan.pos": 0.0,
+          "shoulder_lift.pos": -45.0,
+          "elbow_flex.pos": 95.0,
+          "wrist_flex.pos": -70.0,
+          "wrist_roll.pos": 0.0,
+          "gripper.pos": 60.0
+        },
+        "timeout": 7.0,
+        "tolerance": 2.0
+      }
+    }
+  ]
+}

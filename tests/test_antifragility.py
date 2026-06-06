@@ -7,11 +7,13 @@ no escalation and lower cost. All episodes must still succeed.
 
 import pytest
 
+from cygnus import poses, skills
 from cygnus.cognition import build_cognition
 from cygnus.controller import Controller
 from cygnus.detector import BlackSwanDetector
 from cygnus.kinematics import so101_kinematics
 from cygnus.robot import SimBackend
+from cygnus.skill_audit import audit_skills
 
 
 def run_scenario(scenario):
@@ -86,3 +88,41 @@ def test_so101_joint_effects_ground_servo_degrees_in_claw_motion():
     assert abs(effects["wrist_roll.pos"]["per_degree_mm"]["z"]) < 0.5
     # Gripper commands articulate the jaw, not the FK end-effector frame.
     assert effects["gripper.pos"]["per_degree_mm"] == {"x": 0.0, "y": 0.0, "z": 0.0}
+
+
+def test_home_is_harness_rest_with_ceiling_camera_attitude():
+    pytest.importorskip("placo")
+    assert poses.HOME == {
+        "shoulder_pan.pos": 0.0,
+        "shoulder_lift.pos": -45.0,
+        "elbow_flex.pos": 95.0,
+        "wrist_flex.pos": -70.0,
+        "wrist_roll.pos": 0.0,
+        "gripper.pos": 60.0,
+    }
+    pose = so101_kinematics().pose(poses.HOME)
+
+    # Folded back over the harness/base, not neutral-straight in front.
+    assert pose.x < 0.28
+    assert pose.z > 0.14
+
+
+def test_tabletop_grab_skill_uses_wrist_flex_not_roll():
+    grab = skills.load_skill("tabletop_grab_pose_flex_down")
+    target = grab["steps"][0]["args"]["target"]
+
+    assert target["wrist_flex.pos"] > 25.0
+    assert abs(target["wrist_roll.pos"]) < 1.0
+    assert target["gripper.pos"] == poses.OPEN_GRIP
+
+    demo = skills.load_skill("home_reach_grab_home_demo")
+    tools = [step["tool"] for step in demo["steps"]]
+    assert tools == ["move_to", "move_to", "move_to", "set_gripper", "set_gripper", "move_to"]
+    assert demo["steps"][0]["args"]["target"] == poses.HOME
+    assert demo["steps"][-1]["args"]["target"] == poses.HOME
+
+
+def test_saved_robot_skills_match_current_body_schema():
+    audit = audit_skills()
+    assert audit["ok"], audit
+    assert not audit["warnings"], audit

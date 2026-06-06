@@ -12,10 +12,13 @@ hardware the raw frame is attached to the observation for a vision model.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from ..safety import clamp_action
 from ..types import Observation
+
+logger = logging.getLogger(__name__)
 
 
 class SO101Backend:
@@ -96,7 +99,26 @@ class SO101Backend:
         )
 
     def get_observation(self) -> Observation:
-        return self._split(self._robot.get_observation())
+        try:
+            return self._split(self._robot.get_observation())
+        except Exception as exc:
+            # LeRobot reads motors first and then camera frames. If a UVC frame is
+            # stale, `get_observation()` raises after the motor bus read would
+            # otherwise have succeeded. Keep proprioception/MCP state alive and
+            # fail vision closed: agents can still stop, home, or inspect joints.
+            joints = self._read_joints_only()
+            logger.warning("camera observation failed; returning joint-only state: %s", exc)
+            return Observation(
+                joints=joints,
+                scene={},
+                frame=None,
+                frames={},
+                note=f"live SO-101; camera unavailable/stale: {exc}",
+            )
+
+    def _read_joints_only(self) -> dict[str, float]:
+        obs = self._robot.bus.sync_read("Present_Position")
+        return {f"{motor}.pos": float(value) for motor, value in obs.items()}
 
     def look(self) -> Observation:
         return self.get_observation()
@@ -119,3 +141,14 @@ class SO101Backend:
 
         self._robot.send_action(clamp_action(poses.HOME))
         return self.get_observation()
+
+    def set_torque(self, enabled: bool) -> None:
+        """Enable/disable motor holding torque.
+
+        Disabled = limp arm for kinesthetic hand-teaching; the caller must support
+        the arm (it sags under gravity) and re-enable before commanding motion.
+        """
+        if enabled:
+            self._robot.bus.enable_torque()
+        else:
+            self._robot.bus.disable_torque()

@@ -16,9 +16,18 @@ dependencies = []
 [project.optional-dependencies]
 server = ["mcp>=1.0"]                  # the robot MCP server (FastMCP)
 robot = ["lerobot[feetech]>=0.5.1"]    # the real SO-101 arm
-kinematics = ["placo>=0.9"]            # FK/IK solver for Cartesian EE tools (move_ee_*)
+kinematics = [
+    "cmeel-tinyxml2>=10,<11",
+    "cmeel-urdfdom>=4,<5",
+    "placo>=0.9",
+]            # FK/IK solver for Cartesian EE tools (move_ee_*)
 llm = ["openai>=1.0"]                  # online System-2 reasoner (Azure/OpenAI)
-dev = ["pytest>=8", "placo>=0.9"]      # placo so the kinematics test runs in CI
+dev = [
+    "pytest>=8",
+    "placo>=0.9",
+    "cmeel-urdfdom>=4,<5",
+    "cmeel-tinyxml2>=10,<11",
+]      # placo so the kinematics test runs in CI
 
 [project.scripts]
 cygnus = "cygnus.__main__:main"

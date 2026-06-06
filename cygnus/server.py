@@ -30,9 +30,17 @@ import time
 from mcp.server.fastmcp import FastMCP, Image
 from mcp.types import ToolAnnotations
 
+from .motion_lock import motion_lock
 from .robot import build_backend
 from .robot.base import RobotBackend
-from .safety import JOINT_LIMITS, clamp_action, sanitize_call
+from .safety import (
+    JOINT_LIMITS,
+    MAX_STEP_M,
+    WORKSPACE_BOUNDS,
+    check_ee_target,
+    clamp_action,
+    sanitize_call,
+)
 from .types import Observation
 
 mcp = FastMCP("cygnus-robot")
@@ -261,6 +269,31 @@ def _maybe_get_joint_effects_dict(joints: dict[str, float], *, step_degrees: flo
         return {"available": False, "error": str(exc)}
 
 
+def _load_table_calibration(camera: str):
+    from .calibration import TableCalibration
+
+    return TableCalibration.load(camera)
+
+
+def _project_pixel_to_table_dict(u: float, v: float, *, camera: str = "scene") -> dict:
+    cal = _load_table_calibration(camera)
+    target = cal.pixel_to_table(u, v)
+    workspace_ok = True
+    workspace_error = None
+    try:
+        check_ee_target(target["x"], target["y"], target["z"])
+    except ValueError as exc:
+        workspace_ok = False
+        workspace_error = str(exc)
+    return {
+        "camera": cal.camera,
+        "pixel": {"x": float(u), "y": float(v)},
+        "table_target": target,
+        "workspace_ok": workspace_ok,
+        "workspace_error": workspace_error,
+    }
+
+
 def _move_ee_to(
     *,
     x: float,
@@ -280,6 +313,11 @@ def _move_ee_to(
 
     from .kinematics import EEPose, so101_kinematics
 
+    max_step_m = float(max_step_m)
+    if max_step_m <= 0:
+        raise ValueError("max_step_m must be positive")
+    max_step_m = min(max_step_m, MAX_STEP_M)
+
     obs = _backend().get_observation()
     kin = so101_kinematics()
     current_pose = kin.pose(obs.joints)
@@ -292,6 +330,7 @@ def _move_ee_to(
         wz=current_pose.wz if wz is None else float(wz),
         matrix=current_pose.matrix,
     )
+    check_ee_target(requested_pose.x, requested_pose.y, requested_pose.z)
     dx = requested_pose.x - current_pose.x
     dy = requested_pose.y - current_pose.y
     dz = requested_pose.z - current_pose.z
@@ -310,6 +349,7 @@ def _move_ee_to(
             matrix=current_pose.matrix,
         )
         clipped = True
+    check_ee_target(target_pose.x, target_pose.y, target_pose.z)
 
     target = kin.solve(
         obs.joints,
@@ -346,6 +386,11 @@ def _move_ee_by(
     tolerance: float = 2.0,
 ) -> dict:
     from .kinematics import so101_kinematics
+
+    max_step_m = float(max_step_m)
+    if max_step_m <= 0:
+        raise ValueError("max_step_m must be positive")
+    max_step_m = min(max_step_m, MAX_STEP_M)
 
     obs = _backend().get_observation()
     kin = so101_kinematics()
@@ -385,6 +430,9 @@ def get_capabilities() -> dict:
         "tools": {
             "look": "Capture the camera image plus current robot state.",
             "detect_colored_blocks": "Return simple HSV color blob candidates from a camera.",
+            "fit_table_calibration": "Fit/save pixel-to-table calibration from point correspondences.",
+            "get_table_calibration": "Load the saved pixel-to-table calibration for a camera.",
+            "project_pixel_to_table": "Project a pixel through the saved calibration to a safe table target.",
             "get_state": "Return joint positions and structured scene state.",
             "get_robot_model": "Return joints, limits, presets, cameras, and current state.",
             "get_ee_pose": "Return end-effector pose from FK.",
@@ -397,7 +445,8 @@ def get_capabilities() -> dict:
             "grip": "Open or close the gripper.",
             "wait_until_settled": "Poll until the observed pose stops changing.",
             "run_sequence": "Execute an atomic multi-step tool sequence.",
-            "home": "Return to the neutral safe pose.",
+            "home": "Return to the harness-rest pose with the wrist camera facing upward.",
+            "audit_skills": "Validate saved skills against the learned home/reach/grab body schema.",
         },
         "hardware_channels": {
             "motion": "SO-101 follower / Feetech serial bus over USB",
@@ -405,7 +454,10 @@ def get_capabilities() -> dict:
         },
         "safety": {
             "move_to_clamped": True,
+            "workspace_bounds_m": WORKSPACE_BOUNDS,
             "max_default_ee_step_m": 0.04,
+            "max_allowed_ee_step_m": MAX_STEP_M,
+            "motion_lock": "one actuation command or sequence runs at a time",
             "actuation_tools_destructive": True,
             "e_stop": "Ctrl+C the server or remove robot power.",
         },
@@ -443,6 +495,8 @@ def get_robot_model() -> dict:
             "target_frame": "gripper_frame_link",
             "units": {"position": "meters", "rotation": "radians_rotvec"},
             "default_max_step_m": 0.04,
+            "max_allowed_step_m": MAX_STEP_M,
+            "workspace_bounds_m": WORKSPACE_BOUNDS,
             "current": _maybe_get_ee_pose_dict(state["joints"]),
         },
         "proprioception": {
@@ -517,12 +571,14 @@ def detect_colored_blocks(
     max_area: float = 3000.0,
     max_results: int = 12,
     roi: dict | None = None,
+    include_table_targets: bool = True,
 ) -> dict:
     """Return simple color-blob target candidates from a camera frame.
 
     This is a lightweight tabletop helper, not a full detector. Use it to choose
-    candidate pixels for purple/cyan/orange/blue blocks, then verify with
-    `look(camera="scene")`.
+    candidate pixels for purple/cyan/orange/blue blocks. Once table calibration
+    exists, detections include base-frame table targets agents can feed to
+    `move_ee_to`.
     """
     from .vision import detect_colored_blocks as detect
 
@@ -539,18 +595,76 @@ def detect_colored_blocks(
         selected_camera, frame = camera, None
     if frame is None:
         return {"camera": camera, "detections": [], "state": _obs_to_dict(obs)}
+    detections = detect(
+        frame,
+        min_area=min_area,
+        max_area=max_area,
+        max_results=max_results,
+        roi=roi,
+    )
+    calibration = {"available": False}
+    if include_table_targets:
+        try:
+            calibration = {"available": True, "camera": selected_camera}
+            for detection in detections:
+                center = detection.get("center", {})
+                projection = _project_pixel_to_table_dict(
+                    float(center["x"]),
+                    float(center["y"]),
+                    camera=selected_camera,
+                )
+                detection["table_target"] = projection["table_target"]
+                detection["workspace_ok"] = projection["workspace_ok"]
+                if projection["workspace_error"]:
+                    detection["workspace_error"] = projection["workspace_error"]
+        except FileNotFoundError as exc:
+            calibration = {"available": False, "error": str(exc)}
     return {
         "camera": selected_camera,
-        "detections": detect(
-            frame,
-            min_area=min_area,
-            max_area=max_area,
-            max_results=max_results,
-            roi=roi,
-        ),
+        "detections": detections,
+        "calibration": calibration,
         "roi": roi,
         "state": _obs_to_dict(obs),
     }
+
+
+@mcp.tool(annotations=_WRITE)
+def fit_table_calibration(
+    correspondences: list,
+    table_z: float,
+    camera: str = "scene",
+) -> dict:
+    """Fit and save pixel→table calibration for one camera.
+
+    `correspondences` is a list of {"pixel": [u, v], "table": [x, y]} records.
+    The saved homography lets agents turn visual detections into base-frame
+    `move_ee_to` targets on the table plane.
+    """
+    from .calibration import fit
+
+    cal = fit(correspondences, table_z=table_z, camera=camera)
+    path = cal.save()
+    return {
+        "camera": camera,
+        "samples": len(correspondences),
+        "table_z": table_z,
+        "max_residual_m": getattr(cal, "max_residual_m", None),
+        "path": str(path),
+        "calibration": cal.to_dict(),
+    }
+
+
+@mcp.tool(annotations=_READ_ONLY)
+def get_table_calibration(camera: str = "scene") -> dict:
+    """Load the saved pixel→table calibration for a camera."""
+    cal = _load_table_calibration(camera)
+    return {"available": True, "calibration": cal.to_dict()}
+
+
+@mcp.tool(annotations=_READ_ONLY)
+def project_pixel_to_table(u: float, v: float, camera: str = "scene") -> dict:
+    """Project one image pixel to a base-frame table target with workspace status."""
+    return _project_pixel_to_table_dict(u, v, camera=camera)
 
 
 @mcp.tool(annotations=_READ_ONLY)
@@ -597,7 +711,8 @@ def move_to(
     By default this waits for the observed pose to reach the target so agents do
     not plan the next step from a stale in-flight observation.
     """
-    return _move_to(target, wait=wait, timeout=timeout, tolerance=tolerance)
+    with motion_lock(owner="move_to"):
+        return _move_to(target, wait=wait, timeout=timeout, tolerance=tolerance)
 
 
 @mcp.tool(annotations=_ACTUATE)
@@ -614,12 +729,13 @@ def move_relative(
     position — small repeatable nudges (e.g. {"shoulder_pan.pos": -5}) you chain
     based on the camera, instead of a frozen absolute pose. Computed server-side
     (current+delta) so it costs one round-trip, not two."""
-    backend = _backend()
-    current = backend.get_observation().joints
-    target = dict(current)
-    for key, dv in delta.items():
-        target[key] = current.get(key, 0.0) + float(dv)
-    return _move_to(target, wait=wait, timeout=timeout, tolerance=tolerance)
+    with motion_lock(owner="move_relative"):
+        backend = _backend()
+        current = backend.get_observation().joints
+        target = dict(current)
+        for key, dv in delta.items():
+            target[key] = current.get(key, 0.0) + float(dv)
+        return _move_to(target, wait=wait, timeout=timeout, tolerance=tolerance)
 
 
 @mcp.tool(annotations=_ACTUATE)
@@ -644,20 +760,21 @@ def move_ee_to(
     Large translations are clipped to ``max_step_m`` so agents can safely repeat
     the call instead of issuing a single large IK jump.
     """
-    return _move_ee_to(
-        x=x,
-        y=y,
-        z=z,
-        wx=wx,
-        wy=wy,
-        wz=wz,
-        gripper=gripper,
-        orientation_weight=orientation_weight,
-        max_step_m=max_step_m,
-        wait=wait,
-        timeout=timeout,
-        tolerance=tolerance,
-    )
+    with motion_lock(owner="move_ee_to"):
+        return _move_ee_to(
+            x=x,
+            y=y,
+            z=z,
+            wx=wx,
+            wy=wy,
+            wz=wz,
+            gripper=gripper,
+            orientation_weight=orientation_weight,
+            max_step_m=max_step_m,
+            wait=wait,
+            timeout=timeout,
+            tolerance=tolerance,
+        )
 
 
 @mcp.tool(annotations=_ACTUATE)
@@ -681,20 +798,21 @@ def move_ee_by(
     radians added to the current rotation vector. This is the preferred tool for
     approach/descend/lift moves because it avoids joint-space guessing.
     """
-    return _move_ee_by(
-        dx=dx,
-        dy=dy,
-        dz=dz,
-        dwx=dwx,
-        dwy=dwy,
-        dwz=dwz,
-        gripper=gripper,
-        orientation_weight=orientation_weight,
-        max_step_m=max_step_m,
-        wait=wait,
-        timeout=timeout,
-        tolerance=tolerance,
-    )
+    with motion_lock(owner="move_ee_by"):
+        return _move_ee_by(
+            dx=dx,
+            dy=dy,
+            dz=dz,
+            dwx=dwx,
+            dwy=dwy,
+            dwz=dwz,
+            gripper=gripper,
+            orientation_weight=orientation_weight,
+            max_step_m=max_step_m,
+            wait=wait,
+            timeout=timeout,
+            tolerance=tolerance,
+        )
 
 
 @mcp.tool(annotations=_ACTUATE)
@@ -709,13 +827,15 @@ def set_gripper(
     This exposes the calibrated range instead of hiding it behind open/close
     presets, which is essential when calibration is narrow or inverted.
     """
-    return _set_gripper(position, wait=wait, timeout=timeout, tolerance=tolerance)
+    with motion_lock(owner="set_gripper"):
+        return _set_gripper(position, wait=wait, timeout=timeout, tolerance=tolerance)
 
 
 @mcp.tool(annotations=_ACTUATE)
 def grip(mode: str) -> dict:
     """Open or close the gripper. ``mode`` is 'open' or 'close'."""
-    return _grip_mode(mode)
+    with motion_lock(owner="grip"):
+        return _grip_mode(mode)
 
 
 @mcp.tool(annotations=_READ_ONLY)
@@ -736,13 +856,36 @@ def wait_until_settled(
 
 @mcp.tool(annotations=_ACTUATE)
 def home() -> dict:
-    """Return the arm to its safe neutral pose."""
+    """Return the arm to the harness-rest pose with wrist camera facing upward."""
     from . import poses
 
-    obs = _backend().home()
-    target = clamp_action(poses.HOME)
-    obs, motion = _wait_for_motion(target, timeout=2.0, tolerance=2.0)
-    return _obs_with_motion(obs, motion, target)
+    with motion_lock(owner="home"):
+        obs = _backend().home()
+        target = clamp_action(poses.HOME)
+        obs, motion = _wait_for_motion(target, timeout=2.0, tolerance=2.0)
+        return _obs_with_motion(obs, motion, target)
+
+
+@mcp.tool(annotations=_ACTUATE)
+def relax(enabled: bool = False) -> dict:
+    """Enable or disable motor holding torque (for kinesthetic hand-teaching).
+
+    relax(enabled=False) makes the arm LIMP so it can be posed by hand; then
+    capture the pose with get_state and save_skill. relax(enabled=True) re-locks
+    it to hold position.
+
+    WARNING: with torque off the arm SAGS/DROPS under gravity — support it and
+    relax from a low pose. Re-enable torque before issuing any motion command.
+    """
+    backend = _backend()
+    set_torque = getattr(backend, "set_torque", None)
+    if set_torque is None:
+        raise RuntimeError("torque control is only available on the real SO-101 backend")
+    with motion_lock(owner="relax"):
+        set_torque(enabled)
+    result = _obs_to_dict(backend.get_observation())
+    result["torque_enabled"] = enabled
+    return result
 
 
 @mcp.tool(annotations=_ACTUATE)
@@ -759,6 +902,22 @@ def run_sequence(
     ``wait_until_settled``. Each motion step can wait for observed settling,
     making approach-close-lift routines less race-prone.
     """
+    with motion_lock(owner="run_sequence"):
+        return _run_sequence_unlocked(
+            steps,
+            wait=wait,
+            timeout_per_step=timeout_per_step,
+            tolerance=tolerance,
+        )
+
+
+def _run_sequence_unlocked(
+    steps: list,
+    *,
+    wait: bool = True,
+    timeout_per_step: float = 2.0,
+    tolerance: float = 2.0,
+) -> dict:
     executed = []
     final: dict | None = None
     for raw in steps:
@@ -853,6 +1012,18 @@ def list_skills() -> list:
     return skills.list_skills()
 
 
+@mcp.tool(annotations=_READ_ONLY)
+def audit_skills() -> dict:
+    """Validate saved skills against the current learned body schema.
+
+    This catches stale/open-loop lessons such as roll-based "grabbing" and
+    confirms the required home → reach → flex-down grab → home skills exist.
+    """
+    from .skill_audit import audit_skills as audit
+
+    return audit()
+
+
 @mcp.tool(annotations=_WRITE)
 def save_skill(name: str, steps: list, description: str = "", notes: str = "") -> dict:
     """Save a reusable skill from an ordered list of tool calls — each
@@ -870,60 +1041,11 @@ def run_skill(name: str) -> dict:
     Open-loop — only valid while the target is in the position it was taught for."""
     from . import skills
 
-    skill = skills.load_skill(name)
-    executed = 0
-    final: dict | None = None
-    for raw in skill.get("steps", []):
-        call = sanitize_call(raw)
-        tool = call["tool"]
-        args = call.get("args", {})
-        if tool == "move_to":
-            final = _move_to(args["target"])
-        elif tool == "move_relative":
-            current = _backend().get_observation().joints
-            target = dict(current)
-            for key, dv in args["delta"].items():
-                target[key] = current.get(key, 0.0) + float(dv)
-            final = _move_to(target)
-        elif tool == "move_ee_to":
-            final = _move_ee_to(
-                x=float(args["x"]),
-                y=float(args["y"]),
-                z=float(args["z"]),
-                wx=args.get("wx"),
-                wy=args.get("wy"),
-                wz=args.get("wz"),
-                gripper=args.get("gripper"),
-                orientation_weight=float(args.get("orientation_weight", 0.01)),
-                max_step_m=float(args.get("max_step_m", 0.04)),
-            )
-        elif tool == "move_ee_by":
-            final = _move_ee_by(
-                dx=float(args.get("dx", 0.0)),
-                dy=float(args.get("dy", 0.0)),
-                dz=float(args.get("dz", 0.0)),
-                dwx=float(args.get("dwx", 0.0)),
-                dwy=float(args.get("dwy", 0.0)),
-                dwz=float(args.get("dwz", 0.0)),
-                gripper=args.get("gripper"),
-                orientation_weight=float(args.get("orientation_weight", 0.01)),
-                max_step_m=float(args.get("max_step_m", 0.04)),
-            )
-        elif tool == "set_gripper":
-            final = _set_gripper(float(args["position"]))
-        elif tool == "grip":
-            final = _grip_mode(args["mode"])
-        elif tool == "home":
-            final = home()
-        elif tool == "wait_until_settled":
-            final = wait_until_settled(**args)
-        else:
-            raise ValueError(f"unknown tool in skill {name!r}: {tool!r}")
-        executed += 1
-    result = final or _obs_to_dict(_backend().get_observation())
-    result["ran_skill"] = name
-    result["steps_executed"] = executed
-    return result
+    with motion_lock(owner=f"run_skill:{name}"):
+        skill = skills.load_skill(name)
+        result = _run_sequence_unlocked(skill.get("steps", []))
+        result["ran_skill"] = name
+        return result
 
 
 def main() -> None:

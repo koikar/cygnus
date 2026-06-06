@@ -28,8 +28,9 @@ def pose(
     return {f"{name}.pos": float(v) for name, v in zip(JOINTS, values)}
 
 
-# The neutral / safe reset pose.
-HOME = pose(0, 0, 0, grip=50)
+# The physical resting pose: folded backward onto the harness/base area, with the
+# wrist camera pointed upward toward the ceiling. Validated on the live SO-101.
+HOME = pose(0, -45, 95, -70, grip=60)
 
 # Cube pick locations. The arm's *habit* is trained for zone "A"; "B"/"C" are
 # the novel placements that constitute black swans for a blind habit.

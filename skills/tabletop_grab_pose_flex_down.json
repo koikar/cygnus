@@ -1,0 +1,22 @@
+{
+  "name": "tabletop_grab_pose_flex_down",
+  "description": "Corrected tabletop pre-grab pose: neutral wrist roll, claw pitched downward using wrist_flex, gripper open.",
+  "notes": "Validated by snapshot 2026-06-06. Use this before closing; do not use wrist_roll to aim the grab.",
+  "steps": [
+    {
+      "tool": "move_to",
+      "args": {
+        "target": {
+          "shoulder_pan.pos": 0.0,
+          "shoulder_lift.pos": 20.0,
+          "elbow_flex.pos": -5.0,
+          "wrist_flex.pos": 35.0,
+          "wrist_roll.pos": 0.0,
+          "gripper.pos": 60.0
+        },
+        "timeout": 6.0,
+        "tolerance": 2.0
+      }
+    }
+  ]
+}

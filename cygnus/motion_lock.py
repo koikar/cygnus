@@ -16,8 +16,8 @@ from __future__ import annotations
 import threading
 from contextlib import contextmanager
 
-_LOCK = threading.Lock()
-_holder: dict[str, str | None] = {"owner": None}
+_LOCK = threading.RLock()
+_holder: dict[str, str | int | None] = {"owner": None, "depth": 0}
 
 
 class MotionBusy(RuntimeError):
@@ -37,11 +37,15 @@ def motion_lock(owner: str = "mcp", timeout: float = 5.0):
         raise MotionBusy(
             f"arm is busy executing a motion (owner={_holder['owner']}); retry shortly"
         )
+    previous_owner = _holder["owner"]
     _holder["owner"] = owner
+    _holder["depth"] = int(_holder["depth"] or 0) + 1
     try:
         yield
     finally:
-        _holder["owner"] = None
+        depth = int(_holder["depth"] or 1) - 1
+        _holder["depth"] = depth
+        _holder["owner"] = previous_owner if depth else None
         _LOCK.release()
 
 

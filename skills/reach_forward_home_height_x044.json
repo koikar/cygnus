@@ -1,0 +1,22 @@
+{
+  "name": "reach_forward_home_height_x044",
+  "description": "Coordinated shoulder/elbow/wrist near-full forward reach to the x\u22480.44 m home-height envelope.",
+  "notes": "Validated 2026-06-06: moved FK x from 0.423 m to 0.443 m. Elbow lagged by ~2.8 deg under load; inspect motion.errors and current FK after running.",
+  "steps": [
+    {
+      "tool": "move_to",
+      "args": {
+        "target": {
+          "shoulder_pan.pos": 0.0,
+          "shoulder_lift.pos": 30.4,
+          "elbow_flex.pos": -43.1,
+          "wrist_flex.pos": 12.7,
+          "wrist_roll.pos": 0.0,
+          "gripper.pos": 60.0
+        },
+        "timeout": 5.0,
+        "tolerance": 2.0
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "retract_forward_stage_x042",
+  "description": "Retract from near-full forward reach back toward the x\u22480.42 m staged reach posture.",
+  "notes": "Validated 2026-06-06 after x044 stretch. Shoulder_lift may lag several degrees; use get_ee_pose after running.",
+  "steps": [
+    {
+      "tool": "move_to",
+      "args": {
+        "target": {
+          "shoulder_pan.pos": 0.0,
+          "shoulder_lift.pos": 15.8,
+          "elbow_flex.pos": -20.9,
+          "wrist_flex.pos": 5.1,
+          "wrist_roll.pos": 0.0,
+          "gripper.pos": 60.0
+        },
+        "timeout": 4.0,
+        "tolerance": 2.0
+      }
+    }
+  ]
+}

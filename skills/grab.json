@@ -1,0 +1,13 @@
+{
+  "name": "grab",
+  "description": "Close the claw to grip an object.",
+  "notes": "Gripper-only; independent of arm position. Use after positioning over a target.",
+  "steps": [
+    {
+      "tool": "set_gripper",
+      "args": {
+        "position": 15
+      }
+    }
+  ]
+}

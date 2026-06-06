@@ -1,0 +1,13 @@
+{
+  "name": "release",
+  "description": "Open the claw to release or prepare to grab.",
+  "notes": "Gripper-only; pair with grab for pick/place workflows.",
+  "steps": [
+    {
+      "tool": "set_gripper",
+      "args": {
+        "position": 60
+      }
+    }
+  ]
+}

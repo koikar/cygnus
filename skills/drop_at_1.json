@@ -1,18 +1,13 @@
 {
   "name": "drop_at_1",
-  "description": "Carry to position 1, open to drop, lift clear.",
-  "notes": "Place + lift-away.",
+  "kind": "place",
+  "description": "Carry to paper_pos_1 (composed ref), open to drop, lift clear.",
+  "notes": "Composed: references paper_pos. Lift-away avoids knocking the cube on return.",
   "steps": [
     {
-      "tool": "move_to",
+      "tool": "skill",
       "args": {
-        "target": {
-          "shoulder_pan.pos": 16.8,
-          "shoulder_lift.pos": 41.6,
-          "elbow_flex.pos": -21.8,
-          "wrist_flex.pos": 81.0,
-          "wrist_roll.pos": -80.4
-        }
+        "name": "paper_pos_1"
       }
     },
     {

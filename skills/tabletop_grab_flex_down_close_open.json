@@ -1,5 +1,6 @@
 {
   "name": "tabletop_grab_flex_down_close_open",
+  "kind": "demo",
   "description": "Correct tabletop grabbing practice: neutral wrist roll, wrist_flex pitches claw downward, close then reopen at table band.",
   "notes": "Validated by home_reach_grab_home_validation_log.json. This is the corrected replacement for roll/twist based grabbing.",
   "steps": [

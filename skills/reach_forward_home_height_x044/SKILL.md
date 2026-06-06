@@ -2,7 +2,7 @@
 
 > Coordinated shoulder/elbow/wrist near-full forward reach to the x≈0.44 m home-height envelope.
 
-**Type:** robot motion skill (recorded tool-call sequence) · **Steps:** 1
+**Kind:** primitive · **Type:** recorded tool-call sequence · **Steps:** 1
 
 ## When to use
 

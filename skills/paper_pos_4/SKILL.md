@@ -2,7 +2,7 @@
 
 > Go to taught arm position 4 (original calibrated pose).
 
-**Type:** robot motion skill (recorded tool-call sequence) · **Steps:** 1
+**Kind:** position · **Type:** recorded tool-call sequence · **Steps:** 1
 
 ## When to use
 

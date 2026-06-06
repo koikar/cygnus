@@ -2,7 +2,7 @@
 
 > Open the claw to release or prepare to grab.
 
-**Type:** robot motion skill (recorded tool-call sequence) · **Steps:** 1
+**Kind:** primitive · **Type:** recorded tool-call sequence · **Steps:** 1
 
 ## When to use
 

@@ -24,6 +24,8 @@ ALLOWED_TOOLS = {
     "grip",
     "home",
     "wait_until_settled",
+    "verify_grasp",
+    "skill",
 }
 
 
@@ -95,6 +97,12 @@ def _audit_steps(
             unknown = sorted(set(delta) - set(JOINT_LIMITS))
             if unknown:
                 errors.append(f"{name}: step {i} move_relative delta has unknown joints {unknown}")
+        if tool == "skill":
+            ref = args.get("name")
+            if not ref or not isinstance(ref, str):
+                errors.append(f"{name}: step {i} skill reference missing name")
+            elif not (skills.SKILLS_DIR / f"{ref}.json").exists():
+                errors.append(f"{name}: step {i} references unknown skill {ref!r}")
         if tool == "set_gripper":
             position = args.get("position")
             if position is None:

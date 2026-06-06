@@ -1,5 +1,6 @@
 {
   "name": "paper_pos_1",
+  "kind": "position",
   "description": "Go to taught arm position 1 (original calibrated pose).",
   "notes": "Reverted to original taught pose; lateral shifts hurt grabbing. Use adaptive_grab for misplacement.",
   "steps": [

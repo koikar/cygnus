@@ -42,10 +42,17 @@ def _skill_json(name: str) -> Path:
     return SKILLS_DIR / f"{_validate_name(name)}.json"
 
 
-def save_skill(name: str, steps: Plan, description: str = "", notes: str = "") -> dict:
-    """Persist a skill (its steps) as JSON and write a companion SKILL.md."""
+def save_skill(
+    name: str, steps: Plan, description: str = "", notes: str = "", kind: str = ""
+) -> dict:
+    """Persist a skill (its steps) as JSON and write a companion SKILL.md.
+
+    ``kind`` is an optional intent tag (e.g. ``position`` / ``pick`` / ``place`` /
+    ``primitive`` / ``home`` / ``demo``) so a planner can filter the library by
+    role instead of pattern-matching names.
+    """
     SKILLS_DIR.mkdir(parents=True, exist_ok=True)
-    data = {"name": name, "description": description, "notes": notes, "steps": steps}
+    data = {"name": name, "kind": kind, "description": description, "notes": notes, "steps": steps}
     _skill_json(name).write_text(json.dumps(data, indent=2))
     _write_skill_md(name, data)
     return data
@@ -69,6 +76,7 @@ def list_skills() -> list[dict]:
             out.append(
                 {
                     "name": d.get("name", path.stem),
+                    "kind": d.get("kind", ""),
                     "description": d.get("description", ""),
                     "steps": len(d.get("steps", [])),
                 }
@@ -105,6 +113,10 @@ def _step_str(step: dict[str, Any]) -> str:
         return f"`grip` → {args.get('mode')}"
     if tool == "wait_until_settled":
         return "`wait_until_settled`"
+    if tool == "skill":
+        return f"`skill` → run `{args.get('name')}` (composed reference)"
+    if tool == "verify_grasp":
+        return "`verify_grasp` → wrist-twist held/empty check"
     return f"`{tool}` {args or ''}".strip()
 
 
@@ -115,7 +127,7 @@ def _write_skill_md(name: str, data: dict) -> None:
         "",
         f"> {data.get('description') or 'Recorded robot motion skill.'}",
         "",
-        f"**Type:** robot motion skill (recorded tool-call sequence) · **Steps:** {len(steps)}",
+        f"**Kind:** {data.get('kind') or 'unspecified'} · **Type:** recorded tool-call sequence · **Steps:** {len(steps)}",
         "",
         "## When to use",
         "",

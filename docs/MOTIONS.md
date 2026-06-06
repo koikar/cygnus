@@ -353,3 +353,20 @@ under-converges; deltas return as no-ops) — servo in **joint space**.
 **Drift check.** `paper_pos_1..6` + `home_v2` replay to ≤1.8° (servo
 repeatability). Re-run after any crash/relax to confirm the grounding poses
 haven't moved before trusting open-loop replays.
+
+## Skill library (curated 2026-06-06)
+
+The skills layer is the System-1 reflex library — every pick-and-place workflow
+replays it. It is **tagged and composed**, not a flat pile of recordings:
+
+- **`kind` tag** on every skill (`position` / `pick` / `place` / `primitive` /
+  `home` / `perception` / `demo`) so a planner can filter by role instead of
+  pattern-matching names. Returned by `list_skills`.
+- **Composition** via a `skill` step: `grab_at_N` / `drop_at_N` no longer bake the
+  pose inline — they `{"tool": "skill", "args": {"name": "paper_pos_N"}}`. Re-teach
+  `paper_pos_N` once and every pick/place that uses it updates. (Executor inlines
+  references, depth-guarded against cycles.)
+- **Optional verification**: append a `verify_grasp` step to a pick skill for a
+  confirmed (wrist-twist) hold instead of an open-loop assumption.
+- **Curation**: ~15 throwaway learning-phase probes moved to `skills/_archive/`
+  (not listed/audited, still git-recoverable). Active set is ~27 meaningful skills.

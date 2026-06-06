@@ -1,17 +1,17 @@
 # Skill: grab_at_3
 
-> Open, move to position 3, close to grab.
+> Open, go to paper_pos_3 (composed ref), close to grab.
 
-**Type:** robot motion skill (recorded tool-call sequence) · **Steps:** 3
+**Kind:** pick · **Type:** recorded tool-call sequence · **Steps:** 3
 
 ## When to use
 
-Nominal open-loop grab; adaptive_grab adds vision correction.
+Composed: references paper_pos so re-teaching the position updates this skill. Open-loop grasp; append a verify_grasp step for a confirmed hold.
 
 ## Procedure (recorded tool calls)
 
 1. `set_gripper` → 60
-2. `move_to` → shoulder_pan=-16.8, shoulder_lift=56.0, elbow_flex=-44.0, wrist_flex=91.3, wrist_roll=-123.7
+2. `skill` → run `paper_pos_3` (composed reference)
 3. `set_gripper` → 15
 
 ## Caveats

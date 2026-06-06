@@ -1,5 +1,6 @@
 {
   "name": "release",
+  "kind": "primitive",
   "description": "Open the claw to release or prepare to grab.",
   "notes": "Gripper-only; pair with grab for pick/place workflows.",
   "steps": [

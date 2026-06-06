@@ -1,5 +1,6 @@
 {
   "name": "home_reach_grab_home_demo",
+  "kind": "demo",
   "description": "Validated demo route: harness-rest home, stretch forward, move to flex-down tabletop grab pose, close/open gripper, return home.",
   "notes": "Run only with the current tabletop layout clear. Home camera points at ceiling; grab uses wrist_flex, not wrist_roll.",
   "steps": [

@@ -1,5 +1,6 @@
 {
   "name": "home_harness_rest_ceiling_cam",
+  "kind": "home",
   "description": "Validated home/rest pose: arm folded backward onto the harness/base area with wrist camera facing upward toward the ceiling.",
   "notes": "Validated by scene and wrist snapshots 2026-06-06. This replaces neutral HOME as the physical resting pose. Wrist camera sees ceiling; arm is clear of tabletop and folded back.",
   "steps": [

@@ -2,7 +2,7 @@
 
 > Validated home/rest pose: arm folded backward onto the harness/base area with wrist camera facing upward toward the ceiling.
 
-**Type:** robot motion skill (recorded tool-call sequence) · **Steps:** 1
+**Kind:** home · **Type:** recorded tool-call sequence · **Steps:** 1
 
 ## When to use
 

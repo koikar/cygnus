@@ -1,7 +1,8 @@
 {
   "name": "grab_at_6",
-  "description": "Open, move to position 6, close to grab.",
-  "notes": "Nominal open-loop grab; adaptive_grab adds vision correction.",
+  "kind": "pick",
+  "description": "Open, go to paper_pos_6 (composed ref), close to grab.",
+  "notes": "Composed: references paper_pos so re-teaching the position updates this skill. Open-loop grasp; append a verify_grasp step for a confirmed hold.",
   "steps": [
     {
       "tool": "set_gripper",
@@ -10,15 +11,9 @@
       }
     },
     {
-      "tool": "move_to",
+      "tool": "skill",
       "args": {
-        "target": {
-          "shoulder_pan.pos": 30.1,
-          "shoulder_lift.pos": 9.5,
-          "elbow_flex.pos": 31.2,
-          "wrist_flex.pos": 67.9,
-          "wrist_roll.pos": -70.7
-        }
+        "name": "paper_pos_6"
       }
     },
     {

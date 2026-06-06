@@ -1006,9 +1006,10 @@ def run_sequence(
     """Execute an ordered sequence of robot tool calls as one MCP round-trip.
 
     Supported steps: ``move_to``, ``move_relative``, ``move_ee_to``,
-    ``move_ee_by``, ``set_gripper``, ``grip``, ``home``, and
-    ``wait_until_settled``. Each motion step can wait for observed settling,
-    making approach-close-lift routines less race-prone.
+    ``move_ee_by``, ``set_gripper``, ``grip``, ``home``, ``wait_until_settled``,
+    ``verify_grasp`` (wrist-twist held/empty check), and ``skill`` (inline another
+    saved skill by ``{"tool": "skill", "args": {"name": ...}}``). Each motion step
+    can wait for observed settling, making approach-close-lift routines less race-prone.
     """
     with motion_lock(owner="run_sequence"):
         return _run_sequence_unlocked(
@@ -1025,6 +1026,7 @@ def _run_sequence_unlocked(
     wait: bool = True,
     timeout_per_step: float = 2.0,
     tolerance: float = 2.0,
+    _depth: int = 0,
 ) -> dict:
     executed = []
     final: dict | None = None
@@ -1032,7 +1034,27 @@ def _run_sequence_unlocked(
         call = sanitize_call(raw)
         tool = call["tool"]
         args = call.get("args", {})
-        if tool == "move_to":
+        if tool == "skill":
+            # Composed reference: inline another saved skill's steps. Lets pick/place
+            # skills reference paper_pos_N so re-teaching a position updates them all.
+            if _depth >= 5:
+                raise ValueError("skill composition nested too deep (cycle?)")
+            from . import skills as _skills
+
+            sub = _skills.load_skill(args["name"])
+            final = _run_sequence_unlocked(
+                sub.get("steps", []),
+                wait=wait,
+                timeout_per_step=timeout_per_step,
+                tolerance=tolerance,
+                _depth=_depth + 1,
+            )
+        elif tool == "verify_grasp":
+            final = verify_grasp(
+                twist_deg=float(args.get("twist_deg", 35.0)),
+                shift_threshold_px=float(args.get("shift_threshold_px", 60.0)),
+            )
+        elif tool == "move_to":
             final = _move_to(
                 args["target"],
                 wait=wait,
@@ -1133,14 +1155,17 @@ def audit_skills() -> dict:
 
 
 @mcp.tool(annotations=_WRITE)
-def save_skill(name: str, steps: list, description: str = "", notes: str = "") -> dict:
+def save_skill(
+    name: str, steps: list, description: str = "", notes: str = "", kind: str = ""
+) -> dict:
     """Save a reusable skill from an ordered list of tool calls — each
-    {"tool": "move_to"|"move_ee_by"|"grip"|"home", "args": {...}}. Writes
-    skills/<name>.json + a SKILL.md. Recording only — does NOT move the robot."""
+    {"tool": "move_to"|"move_ee_by"|"grip"|"skill"|..., "args": {...}}. ``kind`` is
+    an optional intent tag (position/pick/place/primitive/home/demo) for filtering.
+    Writes skills/<name>.json + a SKILL.md. Recording only — does NOT move the robot."""
     from . import skills
 
-    saved = skills.save_skill(name, steps, description, notes)
-    return {"saved": saved["name"], "steps": len(saved["steps"]), "path": f"skills/{name}.json"}
+    saved = skills.save_skill(name, steps, description, notes, kind)
+    return {"saved": saved["name"], "kind": saved.get("kind", ""), "steps": len(saved["steps"]), "path": f"skills/{name}.json"}
 
 
 @mcp.tool(annotations=_ACTUATE)

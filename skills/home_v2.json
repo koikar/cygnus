@@ -1,5 +1,6 @@
 {
   "name": "home_v2",
+  "kind": "home",
   "description": "Go to the home_v2 rest pose (arm-only; claw unchanged).",
   "notes": "Arm-only so carrying a cube through home keeps its grip.",
   "steps": [

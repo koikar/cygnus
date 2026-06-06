@@ -2,7 +2,7 @@
 
 > Point the wrist (eye-in-hand) camera down at the block cluster for inspection.
 
-**Type:** robot motion skill (recorded tool-call sequence) · **Steps:** 1
+**Kind:** perception · **Type:** recorded tool-call sequence · **Steps:** 1
 
 ## When to use
 

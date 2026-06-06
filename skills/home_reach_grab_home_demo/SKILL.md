@@ -2,7 +2,7 @@
 
 > Validated demo route: harness-rest home, stretch forward, move to flex-down tabletop grab pose, close/open gripper, return home.
 
-**Type:** robot motion skill (recorded tool-call sequence) · **Steps:** 6
+**Kind:** demo · **Type:** recorded tool-call sequence · **Steps:** 6
 
 ## When to use
 

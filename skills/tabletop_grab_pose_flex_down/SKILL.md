@@ -2,7 +2,7 @@
 
 > Corrected tabletop pre-grab pose: neutral wrist roll, claw pitched downward using wrist_flex, gripper open.
 
-**Type:** robot motion skill (recorded tool-call sequence) · **Steps:** 1
+**Kind:** demo · **Type:** recorded tool-call sequence · **Steps:** 1
 
 ## When to use
 

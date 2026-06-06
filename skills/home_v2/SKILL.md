@@ -2,7 +2,7 @@
 
 > Go to the home_v2 rest pose (arm-only; claw unchanged).
 
-**Type:** robot motion skill (recorded tool-call sequence) · **Steps:** 1
+**Kind:** home · **Type:** recorded tool-call sequence · **Steps:** 1
 
 ## When to use
 

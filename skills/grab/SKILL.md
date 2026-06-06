@@ -2,7 +2,7 @@
 
 > Close the claw to grip an object.
 
-**Type:** robot motion skill (recorded tool-call sequence) · **Steps:** 1
+**Kind:** primitive · **Type:** recorded tool-call sequence · **Steps:** 1
 
 ## When to use
 

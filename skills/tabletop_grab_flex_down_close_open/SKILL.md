@@ -2,7 +2,7 @@
 
 > Correct tabletop grabbing practice: neutral wrist roll, wrist_flex pitches claw downward, close then reopen at table band.
 
-**Type:** robot motion skill (recorded tool-call sequence) · **Steps:** 3
+**Kind:** demo · **Type:** recorded tool-call sequence · **Steps:** 3
 
 ## When to use
 

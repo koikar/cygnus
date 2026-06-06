@@ -34,16 +34,19 @@ READ_ONLY = ("get_capabilities", "get_state", "look")
 
 
 def _dump(result) -> None:
+    label = "frame"
     for block in result.content:
         kind = getattr(block, "type", None)
         if kind == "text":
             print(f"  text: {block.text[:400]}")
+            if block.text.startswith("camera:"):
+                label = block.text.split(":", 1)[1].strip()  # name the next image
         elif kind == "image":
             data = base64.b64decode(block.data)
             Path("outputs").mkdir(exist_ok=True)
-            out = Path("outputs/look_mcp.png")
+            out = Path(f"outputs/look_{label}.png")
             out.write_bytes(data)
-            print(f"  image: {len(data)} bytes  ->  {out}")
+            print(f"  image[{label}]: {len(data)} bytes  ->  {out}")
     structured = getattr(result, "structuredContent", None)
     if structured:
         print(f"  structured: {json.dumps(structured)[:400]}")

@@ -83,7 +83,13 @@ class SO101Backend:
         frames = {
             k: v for k, v in obs.items() if not k.endswith(".pos") and hasattr(v, "shape")
         }
-        frame = frames.get("wrist") or (next(iter(frames.values())) if frames else None)
+        # NB: avoid `a or b` here — `frames[...]` is a numpy array (ambiguous truth value).
+        if "wrist" in frames:
+            frame = frames["wrist"]
+        elif frames:
+            frame = next(iter(frames.values()))
+        else:
+            frame = None
         # TODO: derive a structured `scene` from the frames with a vision model.
         return Observation(
             joints=joints, scene={}, frame=frame, frames=frames, note="live SO-101"

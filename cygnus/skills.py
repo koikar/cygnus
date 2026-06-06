@@ -75,8 +75,16 @@ def _step_str(step: dict[str, Any]) -> str:
         target = args.get("target", {})
         joints = ", ".join(f"{k.removesuffix('.pos')}={v:.1f}" for k, v in target.items())
         return f"`move_to` → {joints}"
+    if tool == "move_relative":
+        delta = args.get("delta", {})
+        joints = ", ".join(f"{k.removesuffix('.pos')}={v:+.1f}" for k, v in delta.items())
+        return f"`move_relative` → {joints}"
+    if tool == "set_gripper":
+        return f"`set_gripper` → {args.get('position')}"
     if tool == "grip":
         return f"`grip` → {args.get('mode')}"
+    if tool == "wait_until_settled":
+        return "`wait_until_settled`"
     return f"`{tool}` {args or ''}".strip()
 
 

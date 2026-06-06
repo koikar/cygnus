@@ -25,13 +25,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 
 from mcp.server.fastmcp import FastMCP, Image
 from mcp.types import ToolAnnotations
 
 from .robot import build_backend
 from .robot.base import RobotBackend
-from .safety import clamp_action, sanitize_call
+from .safety import JOINT_LIMITS, clamp_action, sanitize_call
 from .types import Observation
 
 mcp = FastMCP("cygnus-robot")
@@ -72,6 +73,159 @@ def _obs_to_dict(obs: Observation) -> dict:
     }
 
 
+def _motion_status(
+    obs: Observation,
+    target: dict[str, float] | None = None,
+    *,
+    tolerance: float = 2.0,
+) -> dict:
+    errors = {}
+    reached = None
+    if target:
+        errors = {
+            key: obs.joints.get(key, float("nan")) - value
+            for key, value in target.items()
+            if key in obs.joints
+        }
+        reached = all(abs(error) <= tolerance for error in errors.values())
+    return {
+        "target_reached": reached,
+        "tolerance": tolerance,
+        "errors": errors,
+    }
+
+
+def _wait_for_motion(
+    target: dict[str, float] | None = None,
+    *,
+    timeout: float = 2.0,
+    tolerance: float = 2.0,
+    stable_tolerance: float = 0.75,
+    stable_samples: int = 3,
+    poll_interval: float = 0.08,
+) -> tuple[Observation, dict]:
+    """Poll observations until a target is reached, or a free-running pose settles."""
+    deadline = time.monotonic() + max(0.0, timeout)
+    backend = _backend()
+    previous: dict[str, float] | None = None
+    stable_count = 0
+    obs = backend.get_observation()
+    polls = 0
+
+    while True:
+        polls += 1
+        status = _motion_status(obs, target, tolerance=tolerance)
+        if target and status["target_reached"]:
+            status.update({"settled": True, "reason": "target_reached", "polls": polls})
+            return obs, status
+
+        if previous is not None:
+            common = [key for key in obs.joints if key in previous]
+            max_delta = max(
+                (abs(obs.joints[key] - previous[key]) for key in common),
+                default=0.0,
+            )
+            stable_count = stable_count + 1 if max_delta <= stable_tolerance else 0
+        else:
+            max_delta = None
+
+        if not target and stable_count >= stable_samples:
+            status.update(
+                {
+                    "settled": True,
+                    "reason": "pose_stable",
+                    "polls": polls,
+                    "max_delta": max_delta,
+                    "stable_samples": stable_count,
+                }
+            )
+            return obs, status
+
+        if time.monotonic() >= deadline:
+            status.update(
+                {
+                    "settled": stable_count >= stable_samples,
+                    "reason": "timeout",
+                    "polls": polls,
+                    "max_delta": max_delta,
+                    "stable_samples": stable_count,
+                }
+            )
+            return obs, status
+
+        previous = dict(obs.joints)
+        time.sleep(poll_interval)
+        obs = backend.get_observation()
+
+
+def _obs_with_motion(obs: Observation, motion: dict, target: dict[str, float] | None = None) -> dict:
+    result = _obs_to_dict(obs)
+    if target is not None:
+        result["target"] = target
+    result["motion"] = motion
+    return result
+
+
+def _move_to(
+    target: dict[str, float],
+    *,
+    wait: bool = True,
+    timeout: float = 2.0,
+    tolerance: float = 2.0,
+) -> dict:
+    safe_target = clamp_action(target)
+    obs = _backend().move_to(safe_target)
+    if wait:
+        obs, motion = _wait_for_motion(safe_target, timeout=timeout, tolerance=tolerance)
+    else:
+        motion = _motion_status(obs, safe_target, tolerance=tolerance) | {
+            "settled": False,
+            "reason": "not_waited",
+            "polls": 0,
+        }
+    return _obs_with_motion(obs, motion, safe_target)
+
+
+def _set_gripper(
+    position: float,
+    *,
+    wait: bool = True,
+    timeout: float = 1.5,
+    tolerance: float = 2.0,
+) -> dict:
+    return _move_to(
+        {"gripper.pos": position},
+        wait=wait,
+        timeout=timeout,
+        tolerance=tolerance,
+    )
+
+
+def _grip_mode(
+    mode: str,
+    *,
+    wait: bool = True,
+    timeout: float = 1.5,
+    tolerance: float = 2.0,
+) -> dict:
+    from . import poses
+
+    if mode not in {"open", "close"}:
+        raise ValueError(f"grip mode must be 'open' or 'close', got {mode!r}")
+    value = poses.CLOSED_GRIP if mode == "close" else poses.OPEN_GRIP
+    target = {"gripper.pos": value}
+    obs = _backend().grip(mode)
+    if wait:
+        obs, motion = _wait_for_motion(target, timeout=timeout, tolerance=tolerance)
+    else:
+        motion = _motion_status(obs, target, tolerance=tolerance) | {
+            "settled": False,
+            "reason": "not_waited",
+            "polls": 0,
+        }
+    return _obs_with_motion(obs, motion, target)
+
+
 @mcp.tool(annotations=_READ_ONLY)
 def get_capabilities() -> dict:
     """Return the robot MCP contract and safety envelope."""
@@ -81,8 +235,13 @@ def get_capabilities() -> dict:
         "tools": {
             "look": "Capture the camera image plus current robot state.",
             "get_state": "Return joint positions and structured scene state.",
+            "get_robot_model": "Return joints, limits, presets, cameras, and current state.",
             "move_to": "Move toward safe joint-space targets; targets are clamped.",
+            "move_relative": "Nudge joints relative to the current pose.",
+            "set_gripper": "Command a numeric gripper position.",
             "grip": "Open or close the gripper.",
+            "wait_until_settled": "Poll until the observed pose stops changing.",
+            "run_sequence": "Execute an atomic multi-step tool sequence.",
             "home": "Return to the neutral safe pose.",
         },
         "hardware_channels": {
@@ -94,6 +253,40 @@ def get_capabilities() -> dict:
             "actuation_tools_destructive": True,
             "e_stop": "Ctrl+C the server or remove robot power.",
         },
+    }
+
+
+@mcp.tool(annotations=_READ_ONLY)
+def get_robot_model() -> dict:
+    """Return the agent-facing body schema: joints, limits, presets, and state."""
+    from . import poses
+
+    state = _obs_to_dict(_backend().get_observation())
+    return {
+        "backend": _backend().name,
+        "joint_order": list(poses.JOINTS),
+        "joints": {
+            key: {
+                "name": key.removesuffix(".pos"),
+                "position_key": key,
+                "limits": {"min": lo, "max": hi},
+                "current": state["joints"].get(key),
+            }
+            for key, (lo, hi) in JOINT_LIMITS.items()
+        },
+        "gripper": {
+            "position_key": "gripper.pos",
+            "open_preset": poses.OPEN_GRIP,
+            "closed_preset": poses.CLOSED_GRIP,
+            "note": "Use set_gripper(position) to sweep the calibrated numeric range.",
+        },
+        "named_poses": {
+            "home": poses.HOME,
+            "bin": poses.BIN_POSE,
+            "zones": poses.ZONE_POSE,
+        },
+        "cameras": state["cameras"],
+        "state": state,
     }
 
 
@@ -147,13 +340,27 @@ def look(camera: str = "wrist", max_width: int = 512, quality: int = 55):
 
 
 @mcp.tool(annotations=_ACTUATE)
-def move_to(target: dict[str, float]) -> dict:
-    """Move toward a joint-space target. Keys are '<joint>.pos'. Clamped to safe limits."""
-    return _obs_to_dict(_backend().move_to(clamp_action(target)))
+def move_to(
+    target: dict[str, float],
+    wait: bool = True,
+    timeout: float = 2.0,
+    tolerance: float = 2.0,
+) -> dict:
+    """Move toward a joint-space target. Keys are '<joint>.pos'. Clamped to safe limits.
+
+    By default this waits for the observed pose to reach the target so agents do
+    not plan the next step from a stale in-flight observation.
+    """
+    return _move_to(target, wait=wait, timeout=timeout, tolerance=tolerance)
 
 
 @mcp.tool(annotations=_ACTUATE)
-def move_relative(delta: dict[str, float]) -> dict:
+def move_relative(
+    delta: dict[str, float],
+    wait: bool = True,
+    timeout: float = 2.0,
+    tolerance: float = 2.0,
+) -> dict:
     """Nudge joints by RELATIVE degrees from the current pose. Keys are '<joint>.pos';
     only the given joints change, the rest hold. Clamped to safe limits.
 
@@ -166,21 +373,124 @@ def move_relative(delta: dict[str, float]) -> dict:
     target = dict(current)
     for key, dv in delta.items():
         target[key] = current.get(key, 0.0) + float(dv)
-    return _obs_to_dict(backend.move_to(clamp_action(target)))
+    return _move_to(target, wait=wait, timeout=timeout, tolerance=tolerance)
+
+
+@mcp.tool(annotations=_ACTUATE)
+def set_gripper(
+    position: float,
+    wait: bool = True,
+    timeout: float = 1.5,
+    tolerance: float = 2.0,
+) -> dict:
+    """Command the gripper directly as a numeric ``gripper.pos`` target.
+
+    This exposes the calibrated range instead of hiding it behind open/close
+    presets, which is essential when calibration is narrow or inverted.
+    """
+    return _set_gripper(position, wait=wait, timeout=timeout, tolerance=tolerance)
 
 
 @mcp.tool(annotations=_ACTUATE)
 def grip(mode: str) -> dict:
     """Open or close the gripper. ``mode`` is 'open' or 'close'."""
-    if mode not in {"open", "close"}:
-        raise ValueError(f"grip mode must be 'open' or 'close', got {mode!r}")
-    return _obs_to_dict(_backend().grip(mode))
+    return _grip_mode(mode)
+
+
+@mcp.tool(annotations=_READ_ONLY)
+def wait_until_settled(
+    timeout: float = 2.0,
+    stable_tolerance: float = 0.75,
+    stable_samples: int = 3,
+) -> dict:
+    """Poll observations until the pose stops changing, without commanding motion."""
+    obs, motion = _wait_for_motion(
+        None,
+        timeout=timeout,
+        stable_tolerance=stable_tolerance,
+        stable_samples=stable_samples,
+    )
+    return _obs_with_motion(obs, motion)
 
 
 @mcp.tool(annotations=_ACTUATE)
 def home() -> dict:
     """Return the arm to its safe neutral pose."""
-    return _obs_to_dict(_backend().home())
+    from . import poses
+
+    obs = _backend().home()
+    target = clamp_action(poses.HOME)
+    obs, motion = _wait_for_motion(target, timeout=2.0, tolerance=2.0)
+    return _obs_with_motion(obs, motion, target)
+
+
+@mcp.tool(annotations=_ACTUATE)
+def run_sequence(
+    steps: list,
+    wait: bool = True,
+    timeout_per_step: float = 2.0,
+    tolerance: float = 2.0,
+) -> dict:
+    """Execute an ordered sequence of robot tool calls as one MCP round-trip.
+
+    Supported steps: ``move_to``, ``move_relative``, ``set_gripper``, ``grip``,
+    ``home``, and ``wait_until_settled``. Each motion step can wait for observed
+    settling, making approach-close-lift routines less race-prone.
+    """
+    executed = []
+    final: dict | None = None
+    for raw in steps:
+        call = sanitize_call(raw)
+        tool = call["tool"]
+        args = call.get("args", {})
+        if tool == "move_to":
+            final = _move_to(
+                args["target"],
+                wait=wait,
+                timeout=float(args.get("timeout", timeout_per_step)),
+                tolerance=float(args.get("tolerance", tolerance)),
+            )
+        elif tool == "move_relative":
+            current = _backend().get_observation().joints
+            target = dict(current)
+            for key, dv in args["delta"].items():
+                target[key] = current.get(key, 0.0) + float(dv)
+            final = _move_to(
+                target,
+                wait=wait,
+                timeout=float(args.get("timeout", timeout_per_step)),
+                tolerance=float(args.get("tolerance", tolerance)),
+            )
+        elif tool == "set_gripper":
+            final = _set_gripper(
+                float(args["position"]),
+                wait=wait,
+                timeout=float(args.get("timeout", min(timeout_per_step, 1.5))),
+                tolerance=float(args.get("tolerance", tolerance)),
+            )
+        elif tool == "grip":
+            final = _grip_mode(
+                args["mode"],
+                wait=wait,
+                timeout=float(args.get("timeout", min(timeout_per_step, 1.5))),
+                tolerance=float(args.get("tolerance", tolerance)),
+            )
+        elif tool == "home":
+            final = home()
+        elif tool == "wait_until_settled":
+            final = wait_until_settled(
+                timeout=float(args.get("timeout", timeout_per_step)),
+                stable_tolerance=float(args.get("stable_tolerance", 0.75)),
+                stable_samples=int(args.get("stable_samples", 3)),
+            )
+        else:
+            raise ValueError(f"unknown run_sequence tool: {tool!r}")
+        executed.append({"tool": tool, "args": args, "motion": final.get("motion", {})})
+
+    result = final or _obs_to_dict(_backend().get_observation())
+    result["steps_executed"] = len(executed)
+    result["trace"] = executed
+    return result
 
 
 @mcp.tool(annotations=_READ_ONLY)
@@ -209,22 +519,32 @@ def run_skill(name: str) -> dict:
     from . import skills
 
     skill = skills.load_skill(name)
-    backend = _backend()
     executed = 0
+    final: dict | None = None
     for raw in skill.get("steps", []):
         call = sanitize_call(raw)
         tool = call["tool"]
         args = call.get("args", {})
         if tool == "move_to":
-            backend.move_to(args["target"])
+            final = _move_to(args["target"])
+        elif tool == "move_relative":
+            current = _backend().get_observation().joints
+            target = dict(current)
+            for key, dv in args["delta"].items():
+                target[key] = current.get(key, 0.0) + float(dv)
+            final = _move_to(target)
+        elif tool == "set_gripper":
+            final = _set_gripper(float(args["position"]))
         elif tool == "grip":
-            backend.grip(args["mode"])
+            final = _grip_mode(args["mode"])
         elif tool == "home":
-            backend.home()
+            final = home()
+        elif tool == "wait_until_settled":
+            final = wait_until_settled(**args)
         else:
             raise ValueError(f"unknown tool in skill {name!r}: {tool!r}")
         executed += 1
-    result = _obs_to_dict(backend.get_observation())
+    result = final or _obs_to_dict(_backend().get_observation())
     result["ran_skill"] = name
     result["steps_executed"] = executed
     return result

@@ -1,0 +1,20 @@
+{
+  "name": "paper_pos_6",
+  "description": "Go to taught position 'paper_pos_6'.",
+  "notes": "Captured by kinesthetic teaching (relax \u2192 hand-pose \u2192 lock).",
+  "steps": [
+    {
+      "tool": "move_to",
+      "args": {
+        "target": {
+          "shoulder_pan.pos": 30.065934065934066,
+          "shoulder_lift.pos": 9.45054945054945,
+          "elbow_flex.pos": 31.164835164835164,
+          "wrist_flex.pos": 67.86813186813187,
+          "wrist_roll.pos": -70.72527472527473,
+          "gripper.pos": 17.52136752136752
+        }
+      }
+    }
+  ]
+}

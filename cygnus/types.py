@@ -37,7 +37,8 @@ class Observation:
 
     joints: dict[str, float]
     scene: dict[str, Any] = field(default_factory=dict)
-    frame: Optional[Any] = None  # camera ndarray on real hardware; None in sim
+    frame: Optional[Any] = None  # primary camera ndarray (real hardware); None in sim
+    frames: dict[str, Any] = field(default_factory=dict)  # all named camera frames
     grasped: Optional[bool] = None
     note: str = ""
 

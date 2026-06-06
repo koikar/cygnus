@@ -14,17 +14,19 @@ mkdir -p outputs
 export PYTHONUNBUFFERED=1
 
 PORT="${CYGNUS_PORT:-/dev/tty.usbmodem5A7C1215751}"
-CAM="${CYGNUS_CAMERA:-0}"
+CAM="${CYGNUS_CAMERA:-0}"            # wrist (eye-in-hand) camera; -1 = motion-only
+SCENE_CAM="${CYGNUS_SCENE_CAMERA:-1}"  # distant/3rd-person camera; -1 = disable
 HTTP_PORT="${CYGNUS_HTTP_PORT:-8000}"
 PUBLIC_HOST="${CYGNUS_PUBLIC_HOST:-cygnus.tedi.studio}"
 
-echo "Launching cygnus-robot: port=$PORT camera=$CAM http=127.0.0.1:$HTTP_PORT public=$PUBLIC_HOST"
+echo "Launching cygnus-robot: port=$PORT wrist_cam=$CAM scene_cam=$SCENE_CAM http=127.0.0.1:$HTTP_PORT public=$PUBLIC_HOST"
 echo "Logs mirrored to outputs/server.log"
 uv run python -u -m cygnus.server \
   --backend so101 \
   --port "$PORT" \
   --id cygnus_follower \
   --camera-index "$CAM" \
+  --scene-camera-index "$SCENE_CAM" \
   --transport http \
   --host 127.0.0.1 \
   --http-port "$HTTP_PORT" \

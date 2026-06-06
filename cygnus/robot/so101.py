@@ -26,13 +26,15 @@ class SO101Backend:
         port: str,
         id: str = "cygnus_follower",
         camera_index: int = 0,
+        scene_camera_index: int = -1,
         width: int = 640,
         height: int = 480,
         fps: int = 30,
     ) -> None:
         self.port = port
         self.id = id
-        self.camera_index = camera_index
+        self.camera_index = camera_index          # wrist / eye-in-hand cam
+        self.scene_camera_index = scene_camera_index  # optional distant/3rd-person cam
         self.width = width
         self.height = height
         self.fps = fps
@@ -41,21 +43,23 @@ class SO101Backend:
     def connect(self) -> None:
         from lerobot.robots.so_follower import SO101Follower, SO101FollowerConfig
 
-        # Camera is optional: pass camera_index < 0 (or None) to run motion-only.
-        # `look` then returns state without an image, exactly like the simulator —
-        # useful when the OS blocks camera access (e.g. macOS TCC) or no cam is wired.
+        # Cameras are optional: pass index < 0 to omit. `wrist` is the eye-in-hand
+        # camera; `scene` is an optional distant/third-person view of the arm.
+        # With no cameras, `look` returns state only, exactly like the simulator —
+        # useful when the OS blocks camera access (e.g. macOS TCC) or none is wired.
         cameras = {}
-        if self.camera_index is not None and self.camera_index >= 0:
+        wanted = {"wrist": self.camera_index, "scene": self.scene_camera_index}
+        if any(idx is not None and idx >= 0 for idx in wanted.values()):
             from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
 
-            cameras = {
-                "front": OpenCVCameraConfig(
-                    index_or_path=self.camera_index,
-                    width=self.width,
-                    height=self.height,
-                    fps=self.fps,
-                )
-            }
+            for cam_name, idx in wanted.items():
+                if idx is not None and idx >= 0:
+                    cameras[cam_name] = OpenCVCameraConfig(
+                        index_or_path=idx,
+                        width=self.width,
+                        height=self.height,
+                        fps=self.fps,
+                    )
         config = SO101FollowerConfig(
             port=self.port,
             id=self.id,
@@ -73,11 +77,17 @@ class SO101Backend:
             self._robot = None
 
     def _split(self, obs: dict) -> Observation:
-        """Split a LeRobot observation dict into joints + camera frame."""
+        """Split a LeRobot observation dict into joints + named camera frames."""
         joints = {k: float(v) for k, v in obs.items() if k.endswith(".pos")}
-        frame = obs.get("front")
-        # TODO: derive a structured `scene` from `frame` with a vision model.
-        return Observation(joints=joints, scene={}, frame=frame, note="live SO-101")
+        # Camera frames are the non-".pos" entries that look like image arrays.
+        frames = {
+            k: v for k, v in obs.items() if not k.endswith(".pos") and hasattr(v, "shape")
+        }
+        frame = frames.get("wrist") or (next(iter(frames.values())) if frames else None)
+        # TODO: derive a structured `scene` from the frames with a vision model.
+        return Observation(
+            joints=joints, scene={}, frame=frame, frames=frames, note="live SO-101"
+        )
 
     def get_observation(self) -> Observation:
         return self._split(self._robot.get_observation())

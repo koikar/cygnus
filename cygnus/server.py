@@ -57,12 +57,13 @@ def _backend() -> RobotBackend:
 
 
 def _obs_to_dict(obs: Observation) -> dict:
-    """MCP-serializable view of an observation (the raw frame is omitted)."""
+    """MCP-serializable view of an observation (raw frames omitted; names listed)."""
+    cameras = sorted(obs.frames) if obs.frames else (["front"] if obs.frame is not None else [])
     return {
         "joints": obs.joints,
         "scene": obs.scene,
         "grasped": obs.grasped,
-        "has_frame": obs.frame is not None,
+        "cameras": cameras,
         "note": obs.note,
     }
 
@@ -116,11 +117,20 @@ def look():
     it returns the structured scene only."""
     obs = _backend().look()
     state = _obs_to_dict(obs)
-    if obs.frame is not None:
-        jpeg = _encode_jpeg(obs.frame)
+    # One labeled image per camera (e.g. "wrist" eye-in-hand + "scene" overview),
+    # so the agent knows which viewpoint is which.
+    frames = dict(obs.frames) if obs.frames else (
+        {"front": obs.frame} if obs.frame is not None else {}
+    )
+    content: list = []
+    for name, fr in frames.items():
+        jpeg = _encode_jpeg(fr)
         if jpeg is not None:
-            # Image first so the agent perceives it; state as a JSON text block.
-            return [Image(data=jpeg, format="jpeg"), json.dumps(state)]
+            content.append(f"camera: {name}")
+            content.append(Image(data=jpeg, format="jpeg"))
+    if content:
+        content.append(json.dumps(state))  # state as a trailing JSON text block
+        return content
     return state
 
 
@@ -153,7 +163,13 @@ def main() -> None:
         "--camera-index",
         type=int,
         default=0,
-        help="OpenCV camera index for the so101 backend; use -1 to run motion-only (no camera)",
+        help="OpenCV index for the wrist (eye-in-hand) camera; use -1 to run motion-only",
+    )
+    parser.add_argument(
+        "--scene-camera-index",
+        type=int,
+        default=-1,
+        help="optional OpenCV index for a distant/third-person 'scene' camera (-1 = none)",
     )
     parser.add_argument(
         "--transport",
@@ -179,7 +195,11 @@ def main() -> None:
         if not args.port:
             parser.error("--port is required for the so101 backend (see `lerobot-find-port`)")
         _robot = build_backend(
-            "so101", port=args.port, id=args.id, camera_index=args.camera_index
+            "so101",
+            port=args.port,
+            id=args.id,
+            camera_index=args.camera_index,
+            scene_camera_index=args.scene_camera_index,
         )
     else:
         _robot = build_backend("sim")

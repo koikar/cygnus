@@ -1,17 +1,17 @@
 # Skill: grab_at_2
 
-> Open, move to position 2, close to grab a cube there.
+> Open, move to position 2, close to grab.
 
 **Type:** robot motion skill (recorded tool-call sequence) · **Steps:** 3
 
 ## When to use
 
-Pick = release -> pos2 -> grab(close=15). Tune close for cube+pads.
+Nominal open-loop grab; adaptive_grab adds vision correction.
 
 ## Procedure (recorded tool calls)
 
 1. `set_gripper` → 60
-2. `move_to` → shoulder_pan=5.0, shoulder_lift=43.4, elbow_flex=-21.7, wrist_flex=81.6, wrist_roll=-95.8
+2. `move_to` → shoulder_pan=18.5, shoulder_lift=43.1, elbow_flex=-21.8, wrist_flex=81.4, wrist_roll=-95.5
 3. `set_gripper` → 15
 
 ## Caveats

@@ -1,17 +1,17 @@
 {
   "name": "paper_pos_4",
-  "description": "Go to taught arm position 4 (claw state unchanged).",
-  "notes": "Arm-only: gripper not commanded, so the claw keeps its current open/closed state across the move. Use grab/release to set the claw.",
+  "description": "Go to taught arm position 4 (original calibrated pose).",
+  "notes": "Reverted to original taught pose; lateral shifts hurt grabbing. Use adaptive_grab for misplacement.",
   "steps": [
     {
       "tool": "move_to",
       "args": {
         "target": {
-          "shoulder_pan.pos": -24.263736263736263,
-          "shoulder_lift.pos": 12.175824175824175,
-          "elbow_flex.pos": 27.384615384615383,
-          "wrist_flex.pos": 67.95604395604396,
-          "wrist_roll.pos": -123.91208791208791
+          "shoulder_pan.pos": -24.3,
+          "shoulder_lift.pos": 12.2,
+          "elbow_flex.pos": 27.4,
+          "wrist_flex.pos": 68.0,
+          "wrist_roll.pos": -123.9
         }
       }
     }

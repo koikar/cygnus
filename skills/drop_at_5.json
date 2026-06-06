@@ -1,17 +1,17 @@
 {
   "name": "drop_at_5",
-  "description": "Carry to position 5, open to drop, then lift the claw clear of the cube.",
-  "notes": "Place = pos -> release -> lift-away (raise shoulder, retract elbow, wrist up) so the return move doesn't drag the dropped cube.",
+  "description": "Carry to position 5, open to drop, lift clear.",
+  "notes": "Place + lift-away.",
   "steps": [
     {
       "tool": "move_to",
       "args": {
         "target": {
-          "shoulder_pan.pos": 1.054945054945055,
-          "shoulder_lift.pos": -4.175824175824176,
-          "elbow_flex.pos": 47.51648351648352,
-          "wrist_flex.pos": 59.252747252747255,
-          "wrist_roll.pos": -102.02197802197803
+          "shoulder_pan.pos": 1.1,
+          "shoulder_lift.pos": -4.2,
+          "elbow_flex.pos": 47.5,
+          "wrist_flex.pos": 59.3,
+          "wrist_roll.pos": -102.0
         }
       }
     },

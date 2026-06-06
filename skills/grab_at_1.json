@@ -1,7 +1,7 @@
 {
   "name": "grab_at_1",
-  "description": "Open, move to position 1, close to grab a cube there.",
-  "notes": "Pick = release -> pos1 -> grab(close=15). Tune close for cube+pads.",
+  "description": "Open, move to position 1, close to grab.",
+  "notes": "Nominal open-loop grab; adaptive_grab adds vision correction.",
   "steps": [
     {
       "tool": "set_gripper",
@@ -13,11 +13,11 @@
       "tool": "move_to",
       "args": {
         "target": {
-          "shoulder_pan.pos": 16.791208791208792,
-          "shoulder_lift.pos": 41.62637362637363,
-          "elbow_flex.pos": -21.75824175824176,
-          "wrist_flex.pos": 80.96703296703296,
-          "wrist_roll.pos": -80.3956043956044
+          "shoulder_pan.pos": 16.8,
+          "shoulder_lift.pos": 41.6,
+          "elbow_flex.pos": -21.8,
+          "wrist_flex.pos": 81.0,
+          "wrist_roll.pos": -80.4
         }
       }
     },

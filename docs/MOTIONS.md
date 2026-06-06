@@ -305,3 +305,40 @@ A pick = `survey → align → descend_grasp → lift → place`. Move the objec
 `align` re-runs; everything else replays as fast one-call skills. When `descend_grasp`
 comes up empty (gripper closed, nothing held) that's the **black swan** → `recover`
 → re-`align` → re-learn. That capture/replay/re-learn loop is the antifragility story.
+
+## Adaptive self-correcting grab (live-validated 2026-06-06)
+
+Static named poses (`paper_pos_N`) are **open-loop**: one fixed joint target,
+no reaction to where the cube actually is. The SO-101 grab window is only
+**~±2° of `shoulder_pan`** (a couple mm) wide, so as soon as the cube drifts a
+few mm the grab misses — and each missed grab nudges the cube further. Lateral
+*re-teaching* of the saved pose does not help (we tried ±4°: both directions
+missed). The fix is to **close the loop with the wrist camera**.
+
+**Grasp verification — do NOT trust `gripper.pos` for small objects.**
+Empty-close (~17) and cube-held (~17) read the *same*. The reliable gate is
+**lift-and-look**: lift a few cm and check the cube rode up with the claw.
+Differential signal: the wrist cam moves *with* the claw, so a **held** cube
+stays large/fixed in frame; a **missed** cube recedes and shrinks.
+
+**The loop** (`scripts/adaptive_grab.py`): perceive → decide → act → verify → recover
+1. **Hover** open-claw above the nominal grab pose (raise `shoulder_lift` ~12°) — no contact.
+2. **Look** (wrist), find the cube = largest *compact* blob (reject elongated
+   tape/grid lines by aspect ratio; the HSV detector mislabels blue as
+   orange/red because frames are RGB, but the cube is still the biggest blob).
+3. **Correct `shoulder_pan`** toward the cube and re-look. *All correction at
+   hover height so the cube is never touched.* Iterate to ~±28 px.
+4. **Descend straight down** (same pan) and **close**.
+5. **Verify** by lifting and comparing blob area (held if it stays ≳0.6× the
+   pre-lift area).
+6. **Recover**: if empty, open, widen the pan search, retry (≤3).
+
+**Live calibration (640×480 wrist frame).** Increasing `shoulder_pan` moves the
+jaws toward a cube on the lower-x ("left") side of the frame, ≈**36 px/deg**.
+`shoulder_pan` ≈ 3.7 mm/deg of lateral claw motion (`get_joint_effects`).
+Cartesian `move_ee_by` is **unreliable** in this near-vertical wrist config (IK
+under-converges; deltas return as no-ops) — servo in **joint space**.
+
+**Drift check.** `paper_pos_1..6` + `home_v2` replay to ≤1.8° (servo
+repeatability). Re-run after any crash/relax to confirm the grounding poses
+haven't moved before trusting open-loop replays.

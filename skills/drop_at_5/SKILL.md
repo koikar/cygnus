@@ -1,12 +1,12 @@
 # Skill: drop_at_5
 
-> Carry to position 5, open to drop, then lift the claw clear of the cube.
+> Carry to position 5, open to drop, lift clear.
 
 **Type:** robot motion skill (recorded tool-call sequence) · **Steps:** 4
 
 ## When to use
 
-Place = pos -> release -> lift-away (raise shoulder, retract elbow, wrist up) so the return move doesn't drag the dropped cube.
+Place + lift-away.
 
 ## Procedure (recorded tool calls)
 

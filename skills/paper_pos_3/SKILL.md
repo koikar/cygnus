@@ -1,12 +1,12 @@
 # Skill: paper_pos_3
 
-> Go to taught arm position 3 (claw state unchanged).
+> Go to taught arm position 3 (original calibrated pose).
 
 **Type:** robot motion skill (recorded tool-call sequence) · **Steps:** 1
 
 ## When to use
 
-Arm-only: gripper not commanded, so the claw keeps its current open/closed state across the move. Use grab/release to set the claw.
+Reverted to original taught pose; lateral shifts hurt grabbing. Use adaptive_grab for misplacement.
 
 ## Procedure (recorded tool calls)
 

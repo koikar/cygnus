@@ -119,6 +119,11 @@ are enforced on every `move_to` regardless of the caller.
 > **⚠️ Power:** Leader = **5V**, Follower = **12V**. Wrong voltage destroys
 > servos — verify before powering on. `Ctrl+C` is the e-stop.
 
+**You only need the follower** (the executor — the arm with the gripper). The
+leader is a hand-puppet for teleoperation and for recording ACT/SmolVLA training
+demos; Cygnus drives the follower directly via the MCP tools and trains nothing,
+so the leader is unused. One arm, one 12V supply, one USB-C — no 5V/12V mix-up.
+
 ```bash
 lerobot-find-port      # plug in USB + correct power → note the follower port
 lerobot-calibrate --robot.type=so101_follower --robot.port=<FOLLOWER_PORT> --robot.id=cygnus_follower

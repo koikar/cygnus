@@ -77,9 +77,11 @@ writes** are allowed to be slow.
 
 - **[SO-101](https://github.com/TheRobotStudio/SO-ARM100)** open-source arm
   (leader + follower pair), driven by **[Hugging Face LeRobot](https://github.com/huggingface/lerobot)**.
-- A **USB webcam** for vision (`look`). *(Note: Intel RealSense is not supported on
-  macOS — Cygnus uses OpenCV/USB cameras and needs no dataset recording for the
-  core demo, so it runs on a Mac.)*
+- A **USB-C OpenCV/UVC camera** for vision (`look`). The camera is a separate
+  USB device from the Feetech motion bus; Cygnus unifies both behind one MCP
+  server. *(Note: Intel RealSense is not supported on macOS — Cygnus uses
+  OpenCV/USB cameras and needs no dataset recording for the core demo, so it
+  runs on a Mac.)*
 - **⚠️ Power:** Leader = **5V**, Follower = **12V**. Wrong voltage permanently
   damages the servos — always verify before powering on.
 
@@ -109,10 +111,21 @@ See **[PLAN.md](./PLAN.md)** for the full build plan and phases.
 
 ## Running the robot
 
-The robot's body is exposed as an **MCP server** (`cygnus.server`) with five tools
-— `look`, `get_state`, `move_to`, `grip`, `home`. A reasoning agent (your own, or
-a hosted cognitive kernel) connects over MCP and operates the arm. Safety limits
-are enforced on every `move_to` regardless of the caller.
+The robot's body is exposed as an **MCP server** (`cygnus.server`) with five body
+tools — `look`, `get_state`, `move_to`, `grip`, `home` — plus the read-only
+`get_capabilities` discovery helper. A reasoning agent (Codex, Claude, or a
+hosted tedi) connects over MCP and operates the arm. Safety limits are enforced
+on every `move_to` regardless of the caller, and actuation tools are annotated
+as physical-world/destructive actions so compatible clients can gate them.
+
+| Tool | Channel | Purpose |
+| --- | --- | --- |
+| `get_capabilities` | MCP only | Discover tool contract, backend, and safety policy. |
+| `look` | camera USB-C | Return the camera image plus current state metadata. |
+| `get_state` | motion USB-C | Return joint positions and structured scene state. |
+| `move_to` | motion USB-C | Move toward joint-space targets, clamped to safe limits. |
+| `grip` | motion USB-C | Open or close the gripper. |
+| `home` | motion USB-C | Return the arm to the neutral safe pose. |
 
 ### 1. Connect and calibrate the arm (once per session)
 
@@ -124,18 +137,19 @@ leader is a hand-puppet for teleoperation and for recording ACT/SmolVLA training
 demos; Cygnus drives the follower directly via the MCP tools and trains nothing,
 so the leader is unused. One arm, one 12V supply, one USB-C — no 5V/12V mix-up.
 
+Validate the two USB devices separately first:
+
 ```bash
-lerobot-find-port      # plug in USB + correct power → note the follower port
+lerobot-find-port      # motion board: plug in USB-C + 12V power → note the follower port
+lerobot-find-cameras opencv   # camera: enumerate OpenCV devices → note the robot camera index
 lerobot-calibrate --robot.type=so101_follower --robot.port=<FOLLOWER_PORT> --robot.id=cygnus_follower
-lerobot-find-cameras opencv   # enumerate cameras → note the arm's index
 ```
 
-The arm has an **integrated camera** — that's what `look` uses. Run
-`lerobot-find-cameras opencv` to get its index and pass it with `--camera-index`
-(on a Mac the built-in FaceTime camera is usually index `0`, so the arm's camera
-is often `1`+). If it enumerates as a normal OpenCV/UVC device it works on macOS;
-if it's a depth/RealSense module it will **not** capture on macOS — verify which
-before the recording phase.
+The camera is already connected by USB-C; `look` uses the OpenCV index selected
+with `--camera-index`. On a Mac the built-in FaceTime camera is usually index
+`0`, so the robot camera is often `1`+. If OpenCV cannot access the camera,
+grant camera permission to the terminal app running the server and retry
+`lerobot-find-cameras opencv`.
 
 ### 2. Run the robot MCP server
 
@@ -143,11 +157,12 @@ before the recording phase.
 
 ```bash
 # (a) Agent runs on THIS laptop → stdio (the client spawns the server):
-python -m cygnus.server --backend so101 --port <FOLLOWER_PORT> --id cygnus_follower --transport stdio
+python -m cygnus.server --backend so101 --port <FOLLOWER_PORT> --id cygnus_follower \
+    --camera-index <ROBOT_CAMERA_INDEX> --transport stdio
 
 # (b) A REMOTE agent must reach the arm (e.g. a hosted brain) → streamable HTTP:
 python -m cygnus.server --backend so101 --port <FOLLOWER_PORT> --id cygnus_follower \
-    --transport http --host 0.0.0.0 --http-port 8000
+    --camera-index <ROBOT_CAMERA_INDEX> --transport http --host 0.0.0.0 --http-port 8000
 ```
 
 For the HTTP path, expose the laptop's port and register the public URL with your
@@ -161,7 +176,8 @@ cloudflared tunnel --url http://localhost:8000      # → https://<id>.trycloudf
 No hardware yet? Swap `--backend so101 --port ...` for `--backend sim` — the same
 tools run against the simulator. On real hardware, `look` returns the **camera
 image** (for the agent's vision model) plus joint/scene state; in sim it returns
-the structured scene only.
+the structured scene only. The motion bus can still be debugged independently
+from camera enumeration, because they are separate USB devices.
 
 > **Tip — long commands:** end each line with `\` (backslash) so a wrapped paste
 > stays one command, e.g. `lerobot-calibrate \` then `  --robot.type=... \` etc.
@@ -216,8 +232,9 @@ can be whatever language it already is.
 0.5.1, the MCP SDK, and the OpenAI SDK.
 
 **Working now:**
-- Robot **MCP server** (`cygnus.server`) — `look`/`get_state`/`move_to`/`grip`/`home`,
-  over **stdio or streamable HTTP**; HTTP endpoint boots and serves.
+- Robot **MCP server** (`cygnus.server`) — `get_capabilities`/`look`/`get_state`/
+  `move_to`/`grip`/`home`, over **stdio or streamable HTTP**; HTTP endpoint boots
+  and serves.
 - `SimBackend ⇄ SO101Backend` (one flag) + immutable safety guardrails.
 - Self-contained `LocalBackend` cognition + the **antifragility loop** end-to-end
   in sim (`python -m cygnus demo`), with a passing test suite proving novel

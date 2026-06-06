@@ -10,7 +10,7 @@ See [README.md](./README.md) for the concept.
 
 ```
    SO-101 arm  ──Python (LeRobot)──►  ROBOT MCP SERVER  (this repo)
-                                       tools: look · move_to · grip · get_state · home
+   motion USB-C + camera USB-C         tools: get_capabilities · look · move_to · grip · get_state · home
                                                 │  MCP
                                                 ▼
                           AGENT (System 2 reasoning)  +  COGNITIVE BACKEND
@@ -36,7 +36,8 @@ tool-call sequences.
 
 | Tool | Args | Returns | Notes |
 | --- | --- | --- | --- |
-| `look` | – | image + brief scene note | reads the USB webcam frame |
+| `get_capabilities` | – | tool contract + safety policy | read-only discovery for agents |
+| `look` | – | image + brief scene note | reads the USB-C OpenCV/UVC camera frame |
 | `get_state` | – | joint positions | `{shoulder_pan.pos, …, gripper.pos}` |
 | `move_to` | joint targets | new state | joint-space; clamped to safe limits |
 | `grip` | `open`/`close` | new state + grasp guess | |
@@ -44,7 +45,9 @@ tool-call sequences.
 
 **Immutable guardrails live in the server** (joint limits, workspace bounds,
 e-stop). The learning loop can add reflexes but can never relax a safety
-constraint — the anti-"misevolution" boundary.
+constraint — the anti-"misevolution" boundary. Actuation tools are annotated as
+physical-world/destructive MCP calls so Codex, Claude, and tedi can put human
+approval in front of motion where supported.
 
 `RobotBackend` interface: `SimBackend` (offline, synthetic frames + state) ⇄
 `SO101Backend` (real arm). One flag switches them.
@@ -88,23 +91,28 @@ CLI entry points: `lerobot-find-port`, `lerobot-find-cameras`, `lerobot-calibrat
 
 ### Phase 1 — Connect the arm (~1–3 hrs, mostly cabling)
 > **⚠️ POWER:** Leader **5V**, Follower **12V** — wrong voltage destroys servos.
-> Motor-ID setup is pre-done on hackathon arms (skip `lerobot-setup-motors`).
+> Use only the follower for the Cygnus demo. Motor-ID setup is pre-done on
+> hackathon arms (skip `lerobot-setup-motors`).
 > `Ctrl+C` to e-stop; if joints lock, unplug power, wait, replug. Use one
 > consistent `--robot.id` across calibrate + runtime.
 
 ```bash
-lerobot-find-port
+lerobot-find-port           # motion board USB-C
+lerobot-find-cameras opencv # camera USB-C
 lerobot-calibrate --robot.type=so101_follower --robot.port=<FOLLOWER_PORT> --robot.id=cygnus_follower
-lerobot-calibrate --teleop.type=so101_leader  --teleop.port=<LEADER_PORT>  --teleop.id=cygnus_leader
-lerobot-teleoperate \
-  --teleop.type=so101_leader  --teleop.port=<LEADER_PORT>  --teleop.id=cygnus_leader \
-  --robot.type=so101_follower --robot.port=<FOLLOWER_PORT> --robot.id=cygnus_follower
-lerobot-find-cameras opencv
 ```
 
 ### Phase 2 — Point the server at the real arm
-Flip `SimBackend` → `SO101Backend` (port + id + webcam). Same agent loop now moves
-a real arm.
+Flip `SimBackend` → `SO101Backend` (port + id + camera index). Same agent loop
+now moves a real arm and sees through the robot camera:
+
+```bash
+python -m cygnus.server --backend so101 \
+  --port <FOLLOWER_PORT> \
+  --id cygnus_follower \
+  --camera-index <ROBOT_CAMERA_INDEX> \
+  --transport http --host 0.0.0.0 --http-port 8000
+```
 
 ### Phase 3 — The antifragile demo
 1. Goal ("place the cube in the bin") → routine path = System-1 replay.

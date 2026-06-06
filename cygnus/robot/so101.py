@@ -81,10 +81,10 @@ class SO101Backend:
         return self.get_observation()
 
     def grip(self, mode: str) -> Observation:
-        from . import sim  # reuse the shared open/closed constants via poses
-
         from .. import poses
 
+        if mode not in {"open", "close"}:
+            raise ValueError(f"grip mode must be 'open' or 'close', got {mode!r}")
         value = poses.CLOSED_GRIP if mode == "close" else poses.OPEN_GRIP
         self._robot.send_action({"gripper.pos": value})
         return self.get_observation()

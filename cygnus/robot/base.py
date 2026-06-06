@@ -1,8 +1,9 @@
 """The ``RobotBackend`` interface that every body implements.
 
-The five verbs map one-to-one onto the MCP tool surface
+The body verbs map one-to-one onto the MCP tool surface
 (``look``/``get_state``/``move_to``/``grip``/``home``), so the agent operates a
-simulated arm and a real arm through identical calls.
+simulated arm and a real arm through identical calls. ``get_capabilities`` is a
+read-only MCP helper layered above this interface for agent discovery.
 """
 
 from __future__ import annotations

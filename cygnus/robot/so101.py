@@ -152,3 +152,17 @@ class SO101Backend:
             self._robot.bus.enable_torque()
         else:
             self._robot.bus.disable_torque()
+
+    def set_motion_profile(self, acceleration: int | None = None, velocity: int | None = None) -> None:
+        """Write the Feetech motion profile to every motor.
+
+        Lower ``acceleration`` (0-254; LeRobot defaults to 254 = snappiest) gives a
+        gentler, less abrupt ramp. ``velocity`` (Goal_Velocity, 0 = servo default)
+        caps top speed for slower overall motion.
+        """
+        bus = self._robot.bus
+        for motor in bus.motors:
+            if acceleration is not None:
+                bus.write("Acceleration", motor, int(acceleration))
+            if velocity is not None:
+                bus.write("Goal_Velocity", motor, int(velocity))

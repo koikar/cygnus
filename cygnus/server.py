@@ -889,6 +889,24 @@ def relax(enabled: bool = False) -> dict:
 
 
 @mcp.tool(annotations=_ACTUATE)
+def set_speed(acceleration: int = 30, velocity: int | None = None) -> dict:
+    """Set how smooth/slow the arm moves (applies to all subsequent moves).
+
+    Lower ``acceleration`` (0-254) = gentler, less abrupt starts/stops; LeRobot's
+    default is 254 (snappiest). ``velocity`` caps top speed (Goal_Velocity; 0/None
+    leaves the servo default). Good demo values: acceleration ~20-40.
+    """
+    backend = _backend()
+    set_profile = getattr(backend, "set_motion_profile", None)
+    if set_profile is None:
+        raise RuntimeError("motion-profile control is only available on the real SO-101 backend")
+    acc = max(0, min(254, int(acceleration)))
+    with motion_lock(owner="set_speed"):
+        set_profile(acceleration=acc, velocity=velocity)
+    return {"acceleration": acc, "velocity": velocity, "note": "lower acceleration = smoother"}
+
+
+@mcp.tool(annotations=_ACTUATE)
 def run_sequence(
     steps: list,
     wait: bool = True,

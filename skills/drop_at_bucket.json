@@ -1,8 +1,8 @@
 {
   "name": "drop_at_bucket",
   "kind": "place",
-  "description": "Carry to the bucket (composed ref), open the claw to release the cube, then lift clear of the rim.",
-  "notes": "Composed: references the `bucket` position so re-teaching it updates this skill. Open releases into the bucket; the shoulder_lift -15 lifts the claw up clear of the rim before any further move.",
+  "description": "Carry to the bucket (composed ref), open to release, then raise high to clear the rim before any backward motion.",
+  "notes": "Composed: references the `bucket` position. Open releases the cube; shoulder_lift -45 lifts the claw well above the bucket rim (was -15, which dragged the claw through the rim on retract) so the subsequent home fold stays above the bucket.",
   "steps": [
     {
       "tool": "skill",
@@ -26,10 +26,10 @@
       "tool": "move_relative",
       "args": {
         "delta": {
-          "shoulder_lift.pos": -15
+          "shoulder_lift.pos": -45
         },
         "tolerance": 1.5,
-        "timeout": 3
+        "timeout": 4
       }
     },
     {

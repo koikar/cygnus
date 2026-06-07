@@ -29,8 +29,16 @@ PUBLIC_HOST="${REFLEXOS_PUBLIC_HOST:-reflexos.tedi.studio}"
 
 echo "Launching reflexos-robot: port=$PORT wrist_cam=$CAM scene_cam=$SCENE_CAM http=127.0.0.1:$HTTP_PORT public=$PUBLIC_HOST"
 echo "Logs mirrored to outputs/server.log"
-# extras ensure mcp + lerobot + placo (Cartesian IK) are present on a clean clone.
-uv run --extra server --extra robot --extra kinematics python -u -m reflexos.server \
+# Prefer the existing venv's interpreter so launching never needs the network.
+# (`uv run` re-resolves/builds the project — which fails offline, e.g. at the
+# hackathon venue. The venv already has mcp + lerobot + placo installed.)
+if [ -x ".venv/bin/python" ]; then
+  PYRUN=(.venv/bin/python)
+else
+  # Fall back to uv but skip the project sync/build so it stays offline-safe.
+  PYRUN=(uv run --no-sync --extra server --extra robot --extra kinematics python)
+fi
+"${PYRUN[@]}" -u -m reflexos.server \
   --backend so101 \
   --port "$PORT" \
   --id reflexos_follower \

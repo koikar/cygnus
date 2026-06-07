@@ -6,6 +6,9 @@ Built for the **EuroTech × Hong Kong Talent Engage Hackathon** (Munich, June 20
 
 Live website: **[reflexos-six.vercel.app](https://reflexos-six.vercel.app/)**
 
+Live 3D simulation: **[reflex-os-3d-ngt4.vercel.app](https://reflex-os-3d-ngt4.vercel.app/)** —
+an interactive, mock-first mission-control demo for the robot learning loop.
+
 ---
 
 ## The idea
@@ -68,7 +71,7 @@ This enables:
 ReflexOS turns the robot arm into a **[Model Context Protocol](https://modelcontextprotocol.io)
 (MCP) server**: its body is exposed as a surface of **safe primitives** (perceive,
 move in joint- or task-space, grip) plus **saved skills** (validated, replayable
-tool-call sequences). Any MCP-speaking agent can then *operate* the arm the same
+tool-call sequences). Any MCP-speaking agent can then _operate_ the arm the same
 way it would use any other tool — and train, correct, and learn through a
 **pluggable cognitive backend**.
 
@@ -115,9 +118,9 @@ writes** are allowed to be slow.
   (leader + follower pair), driven by **[Hugging Face LeRobot](https://github.com/huggingface/lerobot)**.
 - A **USB-C OpenCV/UVC camera** for vision (`look`). The camera is a separate
   USB device from the Feetech motion bus; ReflexOS unifies both behind one MCP
-  server. *(Note: Intel RealSense is not supported on macOS — ReflexOS uses
+  server. _(Note: Intel RealSense is not supported on macOS — ReflexOS uses
   OpenCV/USB cameras and needs no dataset recording for the core demo, so it
-  runs on a Mac.)*
+  runs on a Mac.)_
 - **⚠️ Power:** Leader = **5V**, Follower = **12V**. Wrong voltage permanently
   damages the servos — always verify before powering on.
 
@@ -149,15 +152,15 @@ mocked or future work.
 
 ## Repo map
 
-| Path | Purpose |
-| --- | --- |
-| `reflexos/` | Python robot/MCP package: server, backends, controller, safety, cognition, skills, perception, calibration, kinematics. |
-| `skills/` | Saved robot skill JSON files and skill descriptions. |
-| `scripts/` | Robot launcher, smoke test, pose capture, and demo helper scripts. |
-| `tests/` | Local tests for training-loop behavior, safety, calibration, motion locking, kinematics, and skill audit. |
-| `docs/` | Motion vocabulary and live hardware findings. |
-| `website/` | Public/product website for the business pitch. |
-| `live-robot-demo/` | Mock-first mission-control UI for explaining the learning loop. |
+| Path               | Purpose                                                                                                                 |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `reflexos/`        | Python robot/MCP package: server, backends, controller, safety, cognition, skills, perception, calibration, kinematics. |
+| `skills/`          | Saved robot skill JSON files and skill descriptions.                                                                    |
+| `scripts/`         | Robot launcher, smoke test, pose capture, and demo helper scripts.                                                      |
+| `tests/`           | Local tests for training-loop behavior, safety, calibration, motion locking, kinematics, and skill audit.               |
+| `docs/`            | Motion vocabulary and live hardware findings.                                                                           |
+| `website/`         | Public/product website for the business pitch.                                                                          |
+| `live-robot-demo/` | Mock-first mission-control UI for explaining the learning loop.                                                         |
 
 ---
 
@@ -172,55 +175,55 @@ clients can gate them.
 
 **Perception** — see the body and the scene:
 
-| Tool | Purpose |
-| --- | --- |
-| `get_capabilities` | Discover the tool contract, backend, and safety policy (read-only). |
-| `get_robot_model` | Agent-facing body schema: joints, limits, presets, current state. |
-| `get_state` | Current joint positions + structured scene. |
-| `look` | Capture a camera frame — `wrist` (eye-in-hand, default), `scene`, or `both`. |
-| `get_joint_effects` | FK finite-difference map: what a +1° on each joint does to the claw (mm/rad). |
+| Tool                    | Purpose                                                                       |
+| ----------------------- | ----------------------------------------------------------------------------- |
+| `get_capabilities`      | Discover the tool contract, backend, and safety policy (read-only).           |
+| `get_robot_model`       | Agent-facing body schema: joints, limits, presets, current state.             |
+| `get_state`             | Current joint positions + structured scene.                                   |
+| `look`                  | Capture a camera frame — `wrist` (eye-in-hand, default), `scene`, or `both`.  |
+| `get_joint_effects`     | FK finite-difference map: what a +1° on each joint does to the claw (mm/rad). |
 | `detect_colored_blocks` | Find colored blocks in a frame; annotated with table targets when calibrated. |
 
 **Cartesian control** — task-space via FK/IK (placo + the bundled SO-101 URDF):
 
-| Tool | Purpose |
-| --- | --- |
-| `get_ee_pose` | End-effector `(x, y, z)` + orientation from FK. |
-| `move_ee_to` | Move to an absolute base-frame point (IK → joints), workspace-checked. |
-| `move_ee_by` | Translate the gripper by `(dx, dy, dz)`, capped per step. |
+| Tool          | Purpose                                                                |
+| ------------- | ---------------------------------------------------------------------- |
+| `get_ee_pose` | End-effector `(x, y, z)` + orientation from FK.                        |
+| `move_ee_to`  | Move to an absolute base-frame point (IK → joints), workspace-checked. |
+| `move_ee_by`  | Translate the gripper by `(dx, dy, dz)`, capped per step.              |
 
 **Joint control** — fine/low-level:
 
-| Tool | Purpose |
-| --- | --- |
-| `move_to` | Move toward absolute joint targets, clamped to safe limits. |
-| `move_relative` | Apply relative joint deltas, clamped. |
+| Tool            | Purpose                                                     |
+| --------------- | ----------------------------------------------------------- |
+| `move_to`       | Move toward absolute joint targets, clamped to safe limits. |
+| `move_relative` | Apply relative joint deltas, clamped.                       |
 
 **Gripper:**
 
-| Tool | Purpose |
-| --- | --- |
+| Tool          | Purpose                                                  |
+| ------------- | -------------------------------------------------------- |
 | `set_gripper` | Set jaw position (`~15` = closed, `~60` = open; not cm). |
-| `grip` | Preset wrapper: `open` / `close`. |
+| `grip`        | Preset wrapper: `open` / `close`.                        |
 
 **Teaching & skills** — capture and replay:
 
-| Tool | Purpose |
-| --- | --- |
-| `relax` | Torque on/off for kinesthetic hand-teaching (limp the arm, pose it, re-lock). |
-| `save_skill` | Save an ordered tool-call sequence as `skills/<name>.json` (recording only — no motion). |
-| `run_skill` | Replay a saved skill's steps in order (open-loop). |
-| `list_skills` / `audit_skills` | List skills; validate them against the current body schema. |
-| `run_sequence` | Execute an inline list of tool calls as one guarded sequence. |
+| Tool                           | Purpose                                                                                  |
+| ------------------------------ | ---------------------------------------------------------------------------------------- |
+| `relax`                        | Torque on/off for kinesthetic hand-teaching (limp the arm, pose it, re-lock).            |
+| `save_skill`                   | Save an ordered tool-call sequence as `skills/<name>.json` (recording only — no motion). |
+| `run_skill`                    | Replay a saved skill's steps in order (open-loop).                                       |
+| `list_skills` / `audit_skills` | List skills; validate them against the current body schema.                              |
+| `run_sequence`                 | Execute an inline list of tool calls as one guarded sequence.                            |
 
 **Pose & safety:**
 
-| Tool | Purpose |
-| --- | --- |
-| `home` | Return to the canonical harness-rest pose (`poses.HOME`), wrist cam facing up. |
-| `wait_until_settled` | Poll until the pose stops changing (commands no motion). |
-| `set_speed` | Lower servo acceleration/velocity for smooth motion (default Accel `254` is snappy). |
-| `fit_table_calibration` / `get_table_calibration` / `project_pixel_to_table` | Pixel→table homography for grounded vision targets. |
+| Tool                                                                         | Purpose                                                                              |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `home`                                                                       | Return to the canonical harness-rest pose (`poses.HOME`), wrist cam facing up.       |
+| `wait_until_settled`                                                         | Poll until the pose stops changing (commands no motion).                             |
+| `set_speed`                                                                  | Lower servo acceleration/velocity for smooth motion (default Accel `254` is snappy). |
+| `fit_table_calibration` / `get_table_calibration` / `project_pixel_to_table` | Pixel→table homography for grounded vision targets.                                  |
 
 **Built-in safety guardrails** (immutable — the learning loop can add reflexes but
 never relax a limit):
@@ -306,7 +309,7 @@ python -m reflexos.server --backend so101 --port <FOLLOWER_PORT> --id reflexos_f
 
 For a remote agent you can front the HTTP port with a cloudflared tunnel and
 register the public `/mcp` URL as an MCP server. **The tunnel is flaky**, so any
-agent running *on the same machine as the arm* should talk to `localhost`
+agent running _on the same machine as the arm_ should talk to `localhost`
 (`http://127.0.0.1:8000/mcp`) directly — that's what `scripts/capture_pose.py`
 and `scripts/smoke_mcp.py` do.
 
@@ -329,7 +332,7 @@ claude mcp add --transport http reflexos-robot http://127.0.0.1:8000/mcp
 codex  mcp add reflexos-robot --url http://127.0.0.1:8000/mcp
 ```
 
-Because the *server* process holds the camera, `look` returns images to **every**
+Because the _server_ process holds the camera, `look` returns images to **every**
 client regardless of that client app's own camera permission. Validate with
 `scripts/smoke_mcp.py --url http://127.0.0.1:8000/mcp` (read-only; add `--move
 home` only with a clear workspace). To capture a new taught pose, limp the arm and
@@ -366,7 +369,7 @@ from camera enumeration, because they are separate USB devices.
 The control board enumerated over USB (LeRobot connected fine), but **no servos
 answered the bus**. This is almost always power or cabling, not software:
 
-1. **Wrong voltage / no servo power.** USB-C powers the board's chip, *not* the
+1. **Wrong voltage / no servo power.** USB-C powers the board's chip, _not_ the
    servos — the board enumerates over USB even with no (or wrong) servo power. If
    the **5V** leader supply is plugged into the **12V** follower, the board lights
    up but the servos can't run. Confirm the **12V** supply, fully seated, and look
@@ -386,7 +389,7 @@ from lerobot.motors.feetech.feetech import FeetechMotorsBus
 print(FeetechMotorsBus.scan_port("/dev/tty.usbmodemXXXX"))  # {baud: [motor_ids]}
 ```
 
-If *any* baud lists motor IDs → it's a config/baud issue. If **all** bauds return
+If _any_ baud lists motor IDs → it's a config/baud issue. If **all** bauds return
 empty, the bus is silent → it's power or the servo-chain cable, not software. Fix
 the physical setup, then re-run the calibrate command.
 
@@ -395,11 +398,11 @@ the physical setup, then re-run the calibrate command.
 Because **the SO-101's entire driver stack — LeRobot — is Python-only.** Talking
 to the Feetech bus servos, calibration, and camera capture all go through
 LeRobot's `SO101Follower`; there is no Node/TypeScript equivalent. So the process
-that *physically touches the arm* must be Python.
+that _physically touches the arm_ must be Python.
 
 That's not a constraint on anything else: **MCP is language-agnostic** (JSON-RPC
 over stdio/HTTP). A Python robot server and a TypeScript brain interoperate
-cleanly — bridging exactly this kind of language gap is what MCP is *for*. The
+cleanly — bridging exactly this kind of language gap is what MCP is _for_. The
 arm is Python because the hardware demands it; everything above the MCP boundary
 can be whatever language it already is.
 
@@ -411,6 +414,7 @@ can be whatever language it already is.
 0.5.1, the MCP SDK, and the OpenAI SDK.
 
 **Working now:**
+
 - Robot **MCP server** (`reflexos.server`) driving a **real SO-101 follower**, over
   **stdio or streamable HTTP**. Full tool surface: perception
   (`look`/`get_state`/`get_robot_model`/`get_joint_effects`/`detect_colored_blocks`),
@@ -422,8 +426,8 @@ can be whatever language it already is.
 - `SimBackend ⇄ SO101Backend` (one flag) + immutable safety guardrails (joint
   clamp, workspace bounds, motion lock for concurrent clients).
 - **Skills library** including 7 kinesthetically-taught poses (`paper_pos_1`..`6`
-  + `home`), `grab`/`release`, and demo routines — validated to land within
-  ~1° of target on replay.
+  - `home`), `grab`/`release`, and demo routines — validated to land within
+    ~1° of target on replay.
 - Self-contained `LocalBackend` cognition + the **agent-training loop** end-to-end
   in sim (`python -m reflexos demo`), with a passing test suite proving novel
   failures escalate once, get corrected, and become fast reflexes.

@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from reflexos.robot import build_backend
 from reflexos.robot.base import RobotBackend
+from reflexos import poses
 
 log = logging.getLogger("reflexos.rest_server")
 
@@ -42,6 +43,15 @@ app.add_middleware(
 # ── shared state ───────────────────────────────────────────────────────────
 _robot: RobotBackend | None = None
 _ws_clients: set[WebSocket] = set()
+_demo_task: asyncio.Task | None = None
+
+# ── pick-and-place intermediate poses ─────────────────────────────────────
+# Above zone A — arm raised, ready to descend
+_PRE_PICK   = poses.pose(-30, -20, 40)
+# Above bin — arm raised while carrying
+_PRE_BIN    = poses.pose(75, -15, 30, grip=poses.CLOSED_GRIP)
+# Lowered into bin to release
+_IN_BIN     = poses.pose(75, -30, 40, grip=poses.CLOSED_GRIP)
 
 
 # ── helpers ────────────────────────────────────────────────────────────────
@@ -119,6 +129,76 @@ async def events_endpoint(ws: WebSocket):
     except WebSocketDisconnect:
         _ws_clients.discard(ws)
 
+
+# ── demo endpoints ─────────────────────────────────────────────────────────
+async def _move(target: dict, pause: float = 1.2) -> None:
+    loop = asyncio.get_event_loop()
+    obs = await loop.run_in_executor(None, _robot.move_to, target)
+    await _broadcast(_obs_payload(obs))
+    await asyncio.sleep(pause)
+
+
+async def _grip(mode: str, pause: float = 0.8) -> None:
+    loop = asyncio.get_event_loop()
+    obs = await loop.run_in_executor(None, _robot.grip, mode)
+    await _broadcast(_obs_payload(obs))
+    await asyncio.sleep(pause)
+
+
+async def _pick_and_place() -> None:
+    """Full pick-and-place: home → open → pre-approach → descend → grip →
+    lift → carry → lower into bin → release → home."""
+    loop = asyncio.get_event_loop()
+
+    # 1. Return to home, open gripper
+    await _move(poses.HOME, pause=1.0)
+    await _grip("open", pause=0.6)
+
+    # 2. Swing above pick zone (pre-approach — arm still high)
+    await _move(_PRE_PICK, pause=1.0)
+
+    # 3. Descend to pick position
+    await _move(poses.ZONE_POSE["A"], pause=0.8)
+
+    # 4. Close gripper — grip the box
+    await _grip("close", pause=0.8)
+
+    # 5. Lift straight back up (carry pose above zone)
+    await _move(_PRE_PICK, pause=1.0)
+
+    # 6. Swing to above the bin
+    await _move(_PRE_BIN, pause=1.2)
+
+    # 7. Lower into bin
+    await _move(_IN_BIN, pause=0.8)
+
+    # 8. Open gripper — release
+    await _grip("open", pause=0.8)
+
+    # 9. Return home
+    await _move(poses.HOME, pause=1.0)
+
+
+@app.post("/demo/run")
+async def demo_run(body: dict = {}):
+    global _demo_task
+    if _demo_task and not _demo_task.done():
+        _demo_task.cancel()
+    _demo_task = asyncio.create_task(_pick_and_place())
+    return {"ok": True}
+
+
+@app.post("/demo/reset")
+async def demo_reset(body: dict = {}):
+    global _demo_task
+    if _demo_task and not _demo_task.done():
+        _demo_task.cancel()
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, _robot.move_to, poses.HOME)
+    await loop.run_in_executor(None, _robot.grip, "open")
+    obs = await loop.run_in_executor(None, _robot.get_observation)
+    await _broadcast(_obs_payload(obs))
+    return {"ok": True}
 
 
 # ── static frontend (built with `npm run build` in live_simulation/) ───────

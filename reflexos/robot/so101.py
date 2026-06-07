@@ -33,6 +33,8 @@ class SO101Backend:
         width: int = 640,
         height: int = 480,
         fps: int = 30,
+        acceleration: int | None = None,
+        velocity: int | None = None,
     ) -> None:
         self.port = port
         self.id = id
@@ -41,6 +43,11 @@ class SO101Backend:
         self.width = width
         self.height = height
         self.fps = fps
+        # Default motion profile applied on connect so smoothness survives restarts
+        # (LeRobot re-defaults the servos to snappy acceleration on connect, which
+        # otherwise silently undoes any earlier set_speed). None = leave as-is.
+        self.acceleration = acceleration
+        self.velocity = velocity
         self._robot: Any = None
 
     def connect(self) -> None:
@@ -73,6 +80,11 @@ class SO101Backend:
         # Load the saved calibration (created by `lerobot-calibrate`); never run
         # interactive calibration from the server.
         self._robot.connect(calibrate=False)
+        # Apply the default motion profile AFTER connect (LeRobot writes its own
+        # snappy defaults during connect), so the arm starts smooth without a
+        # manual set_speed each session.
+        if self.acceleration is not None or self.velocity is not None:
+            self.set_motion_profile(acceleration=self.acceleration, velocity=self.velocity)
 
     def disconnect(self) -> None:
         if self._robot is not None:

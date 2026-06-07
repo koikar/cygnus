@@ -1207,6 +1207,19 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1", help="bind host for http/sse")
     parser.add_argument("--http-port", type=int, default=8000, help="bind port for http/sse")
     parser.add_argument(
+        "--acceleration",
+        type=int,
+        default=22,
+        help="default servo acceleration applied on connect (0-254; lower = smoother). "
+        "Persists the smooth profile across restarts; override per-session with set_speed.",
+    )
+    parser.add_argument(
+        "--velocity",
+        type=int,
+        default=2600,
+        help="default servo top-speed cap (Goal_Velocity) applied on connect; 0 = servo default (uncapped).",
+    )
+    parser.add_argument(
         "--public-host",
         action="append",
         default=[],
@@ -1227,6 +1240,8 @@ def main() -> None:
             id=args.id,
             camera_index=args.camera_index,
             scene_camera_index=args.scene_camera_index,
+            acceleration=args.acceleration,
+            velocity=(args.velocity or None),  # 0 -> None = leave servo default (uncapped)
         )
     else:
         _robot = build_backend("sim")

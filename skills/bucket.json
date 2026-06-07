@@ -1,18 +1,18 @@
 {
   "name": "bucket",
   "kind": "position",
-  "description": "Go to the bucket drop position (bucket now IN FRONT of the arm, full forward stretch at bucket height).",
-  "notes": "Kinesthetically taught: front full-stretch at bucket-rim height (front-facing like pos 2 but elevated). Arm-only so it preserves the grip while carrying. drop_at_bucket keeps the open->lift-clear movement via composition.",
+  "description": "Go to the bucket drop position (LEFT of home), raised so the cube clears the box rim.",
+  "notes": "Left-side reach, raised shoulder_lift to -34. Arm-only.",
   "steps": [
     {
       "tool": "move_to",
       "args": {
         "target": {
-          "shoulder_pan.pos": 2.5,
-          "shoulder_lift.pos": 62.5,
-          "elbow_flex.pos": -60.4,
-          "wrist_flex.pos": 16.1,
-          "wrist_roll.pos": -96.8
+          "shoulder_pan.pos": -76.9,
+          "shoulder_lift.pos": -34,
+          "elbow_flex.pos": 90,
+          "wrist_flex.pos": -55.8,
+          "wrist_roll.pos": -97.1
         }
       }
     }

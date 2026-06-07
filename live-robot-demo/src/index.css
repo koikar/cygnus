@@ -1,0 +1,295 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg-primary: #060b18;
+  --bg-secondary: #0d1526;
+  --bg-card: #111d35;
+  --bg-card-hover: #162040;
+  --bg-surface: #1a2a4a;
+  --accent-blue: #2d8cf0;
+  --accent-blue-dim: #1a5ba8;
+  --accent-green: #00d68f;
+  --accent-green-dim: #007a52;
+  --accent-orange: #ff8c00;
+  --accent-red: #ff3d3d;
+  --accent-purple: #7c5cfc;
+  --accent-yellow: #ffc947;
+  --text-primary: #e8f0fe;
+  --text-secondary: #8baed4;
+  --text-muted: #4a6a8a;
+  --border: rgba(45, 140, 240, 0.15);
+  --border-bright: rgba(45, 140, 240, 0.35);
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+  --glow-blue: 0 0 20px rgba(45, 140, 240, 0.3);
+  --glow-green: 0 0 20px rgba(0, 214, 143, 0.3);
+  --radius: 8px;
+  --radius-lg: 12px;
+  font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', 'Consolas', monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--accent-blue-dim); border-radius: 3px; }
+
+/* Global panel style */
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.panel-title-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--bg-surface);
+  border-color: var(--accent-blue);
+  box-shadow: var(--glow-blue);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) {
+  background: #3a9afc;
+  border-color: #3a9afc;
+  box-shadow: var(--glow-blue);
+}
+
+.btn-danger {
+  background: var(--accent-orange);
+  border-color: var(--accent-orange);
+  color: #fff;
+}
+.btn-danger:hover:not(:disabled) {
+  background: #ff9e20;
+  border-color: #ff9e20;
+}
+
+.btn-success {
+  background: var(--accent-green-dim);
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+}
+.btn-success:hover:not(:disabled) {
+  background: var(--accent-green);
+  color: #000;
+}
+
+.btn-stop {
+  background: var(--accent-red);
+  border-color: var(--accent-red);
+  color: #fff;
+  font-weight: 700;
+}
+.btn-stop:hover:not(:disabled) {
+  background: #ff5555;
+}
+
+/* Status badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.badge-mock {
+  background: rgba(124, 92, 252, 0.15);
+  color: var(--accent-purple);
+  border: 1px solid rgba(124, 92, 252, 0.3);
+}
+
+.badge-live {
+  background: rgba(0, 214, 143, 0.15);
+  color: var(--accent-green);
+  border: 1px solid rgba(0, 214, 143, 0.3);
+}
+
+.badge-disconnected {
+  background: rgba(255, 61, 61, 0.15);
+  color: var(--accent-red);
+  border: 1px solid rgba(255, 61, 61, 0.3);
+}
+
+.pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.pulse-green { background: var(--accent-green); }
+.pulse-purple { background: var(--accent-purple); }
+.pulse-red { background: var(--accent-red); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+/* Event type colors */
+.event-action { color: var(--accent-blue); }
+.event-system { color: var(--text-secondary); }
+.event-error { color: var(--accent-red); }
+.event-failure { color: var(--accent-orange); }
+.event-reasoning { color: var(--accent-yellow); }
+.event-recovery { color: var(--accent-purple); }
+.event-learn { color: var(--accent-green); }
+.event-reflex { color: var(--accent-green); }
+.event-success { color: var(--accent-green); }
+
+/* Sections below hero */
+.section {
+  padding: 64px 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.section-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  letter-spacing: 0.02em;
+}
+
+.section-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 32px;
+}
+
+/* Divider */
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0;
+}
+
+/* Responsive grid helpers */
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 12px;
+}
+
+.hero-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 900px) {
+  .hero-grid {
+    grid-template-columns: 1fr;
+  }
+  .chart-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .panel { padding: 12px; }
+  .section { padding: 40px 16px; }
+  .hero-bottom-grid { grid-template-columns: 1fr; }
+  .btn { padding: 6px 12px; font-size: 11px; }
+}
+
+/* Loading spinner */
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Slide-in animation for stream events */
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.slide-in {
+  animation: slideIn 0.2s ease forwards;
+}
+
+/* Glow text */
+.glow-blue { text-shadow: 0 0 12px var(--accent-blue); }
+.glow-green { text-shadow: 0 0 12px var(--accent-green); }

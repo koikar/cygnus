@@ -96,6 +96,7 @@ export function Features() {
               title="Synthetic-to-real correction"
               desc="The agent compares the simulated plan with the real outcome, finds where it broke, and records the physical correction as reusable memory."
               className="h-full"
+              bgImage="/images/sim-to-real.jpg"
             />
           </StaggerItem>
 

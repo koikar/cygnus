@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Section, Eyebrow } from "@/components/ui/section";
 import { Reveal, Stagger, StaggerItem } from "@/components/ui/reveal";
 
@@ -6,21 +7,33 @@ const METHODS = [
     n: "01",
     title: "Human teleoperation",
     desc: "An operator drives the arm by hand for hours so the system has something to imitate.",
+    image: "/images/teleoperation.jpg",
+    imageAlt: "Warehouse engineer manually operating a robot arm with a teach pendant",
+    imagePos: "center 40%",
   },
   {
     n: "02",
     title: "Leader-follower demonstrations",
     desc: "Every motion is shown on a second arm, then replayed and hand-tuned until it holds.",
+    image: "/images/shift-old.jpg",
+    imageAlt: "Engineer wearing a motion-capture exoskeleton to demonstrate robot movements",
+    imagePos: "center 20%",
   },
   {
     n: "03",
     title: "Simulation datasets",
     desc: "Engineers build and label synthetic scenes that still break the moment reality differs.",
+    image: "/images/sim-to-real.jpg",
+    imageAlt: "Massive array of simulated robots with sim-to-real transfer visualization",
+    imagePos: "center 30%",
   },
   {
     n: "04",
     title: "Endless correction loops",
     desc: "Policies are retuned, more data is collected, the robot is retrained, and the cycle repeats.",
+    image: "/images/problem.jpg",
+    imageAlt: "Robotics engineer frustrated after thousands of failed training episodes",
+    imagePos: "center 25%",
   },
 ];
 
@@ -67,6 +80,40 @@ export function Problem() {
           ))}
         </Stagger>
       </div>
+
+      {/* 4-image evidence grid — one photo per bottleneck method */}
+      <Reveal delay={0.28}>
+        <div className="mt-14 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          {METHODS.map((m) => (
+            <div
+              key={m.n}
+              className="group overflow-hidden rounded-xl border border-line bg-bg-3 p-1 transition-colors duration-300 ease-(--ease-out-quart) hover:border-line-strong"
+            >
+              <div className="relative aspect-4/3 overflow-hidden rounded-[calc(0.75rem-2px)]">
+                <Image
+                  src={m.image}
+                  alt={m.imageAlt}
+                  fill
+                  className="object-cover transition-transform duration-700 ease-(--ease-out-expo) group-hover:scale-[1.04]"
+                  style={{ objectPosition: m.imagePos }}
+                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 280px"
+                />
+                {/* Very light atmospheric tint only */}
+                <div className="absolute inset-0 bg-bg/15" />
+                {/* Bottom gradient for label legibility */}
+                <div className="absolute inset-x-0 bottom-0 h-20 bg-linear-to-t from-bg-3/95 to-transparent" />
+                {/* Label */}
+                <div className="absolute bottom-3 left-3.5 right-3">
+                  <span className="font-mono text-[0.62rem] text-faint/90">{m.n}</span>
+                  <p className="mt-0.5 text-[0.8rem] font-medium leading-snug tracking-tight text-fg">
+                    {m.title}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Reveal>
     </Section>
   );
 }

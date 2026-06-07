@@ -319,6 +319,10 @@ function FallbackRobot() {
 export default function Robot3D() {
   const joints = useAppStore(s => s.joints);
   const scene = useAppStore(s => s.scene);
+  const connectionMode = useAppStore(s => s.connectionMode);
+  const backendOnline = useAppStore(s => s.backendOnline);
+
+  const isLive = connectionMode === 'live' && backendOnline;
 
   return (
     <div style={{ width: '100%', height: '100%', borderRadius: 'var(--radius)', overflow: 'hidden', position: 'relative' }}>
@@ -341,6 +345,52 @@ export default function Robot3D() {
           pulse={scene.holding}
         />
       </div>
+
+      {/* LIVE ROBOT badge — shown only when connected to real backend */}
+      {isLive && (
+        <div style={{
+          position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 10, pointerEvents: 'none',
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: '4px 12px',
+          background: 'rgba(0,214,143,0.12)',
+          border: '1px solid #00d68f88',
+          borderRadius: 20,
+          backdropFilter: 'blur(8px)',
+        }}>
+          <div style={{
+            width: 7, height: 7, borderRadius: '50%',
+            background: '#00d68f',
+            animation: 'pulse 1s ease-in-out infinite',
+          }} />
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#00d68f', letterSpacing: '0.1em' }}>
+            LIVE ROBOT
+          </span>
+        </div>
+      )}
+
+      {/* Joint readout — shown in live mode so you can confirm real values are streaming */}
+      {isLive && (
+        <div style={{
+          position: 'absolute', bottom: 44, left: 12, zIndex: 10,
+          pointerEvents: 'none',
+          background: 'rgba(6,11,24,0.8)',
+          border: '1px solid rgba(0,214,143,0.2)',
+          borderRadius: 8,
+          padding: '6px 10px',
+          backdropFilter: 'blur(6px)',
+          fontFamily: 'monospace',
+        }}>
+          {['shoulder_pan','shoulder_lift','elbow_flex','wrist_flex','wrist_roll','gripper'].map(k => (
+            <div key={k} style={{ display: 'flex', gap: 8, fontSize: 8, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              <span style={{ color: 'var(--text-muted)', width: 88 }}>{k}</span>
+              <span style={{ color: '#00d68f', fontWeight: 600 }}>
+                {joints[k] !== undefined ? `${joints[k].toFixed(1)}°` : '—'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* TOP-RIGHT: Zone legend */}
       <div style={{

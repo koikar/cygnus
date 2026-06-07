@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import useAppStore from './store/useAppStore.js';
 import { MockEngine } from './mock/mockEngine.js';
-import { hasBackend, checkBackendHealth, connectWebSocket } from './client/backendClient.js';
+import { hasBackend, checkBackendHealth, connectWebSocket, getState } from './client/backendClient.js';
 import TopBar from './components/TopBar.jsx';
 import HeroSection from './components/HeroSection.jsx';
 import MemoryCards from './components/MemoryCards.jsx';
@@ -11,6 +11,9 @@ import ReplayScrubber from './components/ReplayScrubber.jsx';
 import ArchitectureSection from './components/ArchitectureSection.jsx';
 import SafetyPanel from './components/SafetyPanel.jsx';
 
+const WS_RECONNECT_DELAY = 3000;   // ms between reconnect attempts
+const POLL_INTERVAL      = 500;    // ms fallback poll when WS is down
+
 export default function App() {
   const {
     applyFrame, applyLiveEvent, resetDemo, setConnectionMode,
@@ -19,12 +22,73 @@ export default function App() {
     setReplayStep, setReplayPlaying,
   } = useAppStore();
 
-  const engineRef = useRef(null);
-  const wsRef = useRef(null);
-  const replayTimerRef = useRef(null);
+  const engineRef        = useRef(null);
+  const wsRef            = useRef(null);
+  const wsConnected      = useRef(false);
+  const reconnectTimer   = useRef(null);
+  const pollTimer        = useRef(null);
+  const replayTimerRef   = useRef(null);
+  const destroyed        = useRef(false);
 
-  // Initialize engine
+  // ── polling fallback ───────────────────────────────────────────────────
+  // Runs when WS is down to keep the 3D arm synced via GET /state.
+  const startPolling = useCallback(() => {
+    if (pollTimer.current) return;
+    pollTimer.current = setInterval(async () => {
+      if (wsConnected.current) {
+        // WS is up — polling no longer needed
+        clearInterval(pollTimer.current);
+        pollTimer.current = null;
+        return;
+      }
+      try {
+        const data = await getState();
+        applyLiveEvent(data);
+      } catch {
+        // backend unreachable — stay in disconnected mode
+      }
+    }, POLL_INTERVAL);
+  }, [applyLiveEvent]);
+
+  const stopPolling = useCallback(() => {
+    clearInterval(pollTimer.current);
+    pollTimer.current = null;
+  }, []);
+
+  // ── WebSocket setup with auto-reconnect ───────────────────────────────
+  const connectWS = useCallback(() => {
+    if (destroyed.current) return;
+
+    wsRef.current = connectWebSocket(
+      (payload) => applyLiveEvent(payload),
+
+      // onOpen
+      () => {
+        wsConnected.current = true;
+        setConnectionMode('live');
+        setBackendOnline(true);
+        clearTimeout(reconnectTimer.current);
+        stopPolling(); // WS is up, stop polling
+      },
+
+      // onClose / onError → schedule reconnect + start polling
+      () => {
+        wsConnected.current = false;
+        setConnectionMode('disconnected');
+        setBackendOnline(false);
+        wsRef.current = null;
+        startPolling(); // keep arm synced while WS is reconnecting
+        reconnectTimer.current = setTimeout(() => {
+          if (!destroyed.current) connectWS();
+        }, WS_RECONNECT_DELAY);
+      },
+    );
+  }, [applyLiveEvent, setConnectionMode, setBackendOnline, startPolling, stopPolling]);
+
+  // ── init ───────────────────────────────────────────────────────────────
   useEffect(() => {
+    destroyed.current = false;
+
     engineRef.current = new MockEngine(
       (frame) => applyFrame(frame),
       () => {
@@ -33,28 +97,25 @@ export default function App() {
       }
     );
 
-    // Try backend connection
     if (hasBackend()) {
       checkBackendHealth().then((online) => {
+        if (destroyed.current) return;
         if (online) {
-          setConnectionMode('live');
-          setBackendOnline(true);
-          wsRef.current = connectWebSocket(
-            (payload) => applyLiveEvent(payload),
-            () => { setConnectionMode('live'); setBackendOnline(true); },
-            () => { setConnectionMode('disconnected'); setBackendOnline(false); }
-          );
+          connectWS();
         } else {
           setConnectionMode('disconnected');
           setBackendOnline(false);
+          startPolling(); // still try to pick up state if backend comes online later
         }
       });
     }
 
-
     return () => {
+      destroyed.current = true;
       engineRef.current?.stop();
       wsRef.current?.close();
+      clearTimeout(reconnectTimer.current);
+      clearInterval(pollTimer.current);
       clearInterval(replayTimerRef.current);
     };
   }, []);
@@ -87,7 +148,7 @@ export default function App() {
     if (replayPlaying) {
       replayTimerRef.current = setInterval(() => {
         const current = useAppStore.getState().replayStep;
-        const frames = useAppStore.getState().replayFrames;
+        const frames  = useAppStore.getState().replayFrames;
         if (current < frames.length - 1) {
           setReplayStep(current + 1);
         } else {
@@ -164,7 +225,7 @@ export default function App() {
         letterSpacing: '0.08em',
         borderTop: '1px solid var(--border)',
       }}>
-        ReflexOS · MISSION CONTROL · EUROTECH HACKATHON · FRONTEND ONLY · MOCK MODE
+        ReflexOS · MISSION CONTROL · EUROTECH HACKATHON
       </footer>
     </div>
   );

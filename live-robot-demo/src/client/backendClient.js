@@ -1,13 +1,25 @@
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+// When VITE_BACKEND_URL is set (local dev), use it explicitly.
+// When empty/absent, use same-origin so the built frontend served by the
+// bridge over a public tunnel just works without any config change.
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? '';
+
+function apiUrl(path) {
+  return BACKEND_URL ? `${BACKEND_URL}${path}` : path;
+}
+
+function buildWsUrl() {
+  if (BACKEND_URL) return BACKEND_URL.replace(/^http/, 'ws') + '/events';
+  const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  return `${proto}://${window.location.host}/events`;
+}
 
 export function hasBackend() {
-  return Boolean(BACKEND_URL);
+  return true; // always attempt; health check decides live vs mock
 }
 
 export async function checkBackendHealth() {
-  if (!BACKEND_URL) return false;
   try {
-    const res = await fetch(`${BACKEND_URL}/state`, { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(apiUrl('/state'), { signal: AbortSignal.timeout(3000) });
     return res.ok;
   } catch {
     return false;
@@ -15,13 +27,13 @@ export async function checkBackendHealth() {
 }
 
 export async function getState() {
-  const res = await fetch(`${BACKEND_URL}/state`);
+  const res = await fetch(apiUrl('/state'));
   if (!res.ok) throw new Error('GET /state failed');
   return res.json();
 }
 
 export async function postDemoRun(payload = {}) {
-  const res = await fetch(`${BACKEND_URL}/demo/run`, {
+  const res = await fetch(apiUrl('/demo/run'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -31,7 +43,7 @@ export async function postDemoRun(payload = {}) {
 }
 
 export async function postInjectFailure(failureType) {
-  const res = await fetch(`${BACKEND_URL}/demo/inject-failure`, {
+  const res = await fetch(apiUrl('/demo/inject-failure'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ type: failureType }),
@@ -41,7 +53,7 @@ export async function postInjectFailure(failureType) {
 }
 
 export async function postReplay() {
-  const res = await fetch(`${BACKEND_URL}/demo/replay`, {
+  const res = await fetch(apiUrl('/demo/replay'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({}),
@@ -51,7 +63,7 @@ export async function postReplay() {
 }
 
 export async function postReset() {
-  const res = await fetch(`${BACKEND_URL}/demo/reset`, {
+  const res = await fetch(apiUrl('/demo/reset'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({}),
@@ -61,11 +73,9 @@ export async function postReset() {
 }
 
 export function connectWebSocket(onEvent, onOpen, onClose) {
-  if (!BACKEND_URL) return null;
-  const wsUrl = BACKEND_URL.replace(/^http/, 'ws') + '/events';
   let ws;
   try {
-    ws = new WebSocket(wsUrl);
+    ws = new WebSocket(buildWsUrl());
     ws.onopen = () => { if (onOpen) onOpen(); };
     ws.onclose = () => { if (onClose) onClose(); };
     ws.onerror = () => { if (onClose) onClose(); };
@@ -74,7 +84,7 @@ export function connectWebSocket(onEvent, onOpen, onClose) {
         const payload = JSON.parse(e.data);
         if (onEvent) onEvent(payload);
       } catch {
-        // ignore invalid payloads
+        // ignore malformed payloads
       }
     };
   } catch {

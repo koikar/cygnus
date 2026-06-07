@@ -4,6 +4,8 @@
 
 Built for the **EuroTech × Hong Kong Talent Engage Hackathon** (Munich, June 2026) · **AI & Robotics** track.
 
+Live website: **[reflexos-six.vercel.app](https://reflexos-six.vercel.app/)**
+
 ---
 
 ## The idea

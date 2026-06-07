@@ -13,8 +13,6 @@
 
 Judges compare this against `git shortlog -sn`, so keep it honest.
 
-Current `git shortlog -sn HEAD`:
-
 ```text
  1 Aaron Koivunen
  2 Muhammad Afzaal Afzal
@@ -58,9 +56,11 @@ Features that run end-to-end with real project logic:
 - **Simulator backend**: `reflexos.robot.sim.SimBackend` runs without hardware or
   network and models enough pick-and-place behavior to validate the learning
   claim.
-- **SO-101 backend code path**: `reflexos.robot.so101.SO101Backend` can connect
-  to a real SO-101 follower through LeRobot when correct hardware, calibration,
-  power, and camera setup are present.
+- **SO-101 backend code path**: `reflexos.robot.so101.SO101Backend` is
+  implemented for connecting to a real SO-101 follower through LeRobot. Live
+  operation still depends on correct hardware, calibration, power, camera
+  permissions, and safe workspace setup, so the automated verification is the
+  simulator/test path rather than a guaranteed live robot run.
 - **Safety guardrails**: joint targets are clamped, unknown joint keys are
   dropped, out-of-workspace Cartesian targets fail closed, and concurrent
   motion is serialized through a process-wide motion lock.
@@ -70,7 +70,8 @@ Features that run end-to-end with real project logic:
 - **Camera-to-table calibration helper**: calibration fitting and projection
   logic is implemented and tested locally.
 - **ReflexOS website**: `website/` is a custom business/product site explaining
-  the problem, market value, architecture, and go-to-market story.
+  the problem, market value, architecture, and go-to-market story. Deployed live
+  at [reflexos-six.vercel.app](https://reflexos-six.vercel.app/).
 - **3D mission-control demo UI**: `live-robot-demo/` builds and runs as a
   visual explanation of the fail -> recover -> learn -> replay loop.
 - **Build/test verification**: the Python tests and both frontend production

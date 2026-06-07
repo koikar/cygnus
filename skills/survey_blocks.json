@@ -1,5 +1,6 @@
 {
   "name": "survey_blocks",
+  "kind": "perception",
   "description": "Point the wrist (eye-in-hand) camera down at the block cluster for inspection.",
   "notes": "Reliable survey pose: gripper hovers high over the table with the wrist cam framing the blue/cyan/orange blocks. Use as the first step before a pick. Open-loop pose.",
   "steps": [

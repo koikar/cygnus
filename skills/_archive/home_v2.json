@@ -1,0 +1,20 @@
+{
+  "name": "home_v2",
+  "kind": "home",
+  "description": "Go to the home_v2 rest pose (arm-only; claw unchanged).",
+  "notes": "Arm-only so carrying a cube through home keeps its grip.",
+  "steps": [
+    {
+      "tool": "move_to",
+      "args": {
+        "target": {
+          "shoulder_pan.pos": 3.076923076923077,
+          "shoulder_lift.pos": -99.47252747252747,
+          "elbow_flex.pos": 96.74725274725274,
+          "wrist_flex.pos": 16.175824175824175,
+          "wrist_roll.pos": -96.83516483516483
+        }
+      }
+    }
+  ]
+}

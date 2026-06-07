@@ -1,14 +1,14 @@
-"""Live MCP validation client for the Cygnus robot server.
+"""Live MCP validation client for the ReflexOS robot server.
 
-Connects to a running ``cygnus.server --transport http`` and exercises the tools.
+Connects to a running ``reflexos.server --transport http`` and exercises the tools.
 Read-only tools (``get_capabilities``, ``get_state``, ``look``) always run; the
 ``look`` image is saved under ``outputs/``. Movement tools (``home``, ``grip``)
 run ONLY when passed explicitly via ``--move`` — so a cluttered workspace can
 never trigger an unexpected swing.
 
     # terminal 1 (camera-authorized, e.g. the Codex terminal): start the server
-    python -m cygnus.server --backend so101 --port /dev/tty.usbmodem5A7C1215751 \
-        --id cygnus_follower --camera-index 0 \
+    python -m reflexos.server --backend so101 --port /dev/tty.usbmodem5A7C1215751 \
+        --id reflexos_follower --camera-index 0 \
         --transport http --host 0.0.0.0 --http-port 8000
 
     # terminal 2: validate (read-only)
@@ -18,8 +18,8 @@ never trigger an unexpected swing.
     python scripts/smoke_mcp.py --url http://localhost:8000/mcp --move home
     python scripts/smoke_mcp.py --url http://localhost:8000/mcp --move grip:open --move grip:close
     python scripts/smoke_mcp.py --url http://localhost:8000/mcp \
-        --expect-skill home_harness_rest_ceiling_cam \
-        --move skill:home_harness_rest_ceiling_cam
+        --expect-skill home \
+        --move skill:home
 """
 
 from __future__ import annotations
@@ -133,7 +133,7 @@ async def run(
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Cygnus robot MCP smoke test")
+    ap = argparse.ArgumentParser(description="ReflexOS robot MCP smoke test")
     ap.add_argument("--url", default="http://localhost:8000/mcp")
     ap.add_argument(
         "--move",
@@ -141,7 +141,7 @@ def main() -> None:
         default=[],
         metavar="TOOL[:ARG]",
         help="movement tool to run, e.g. 'home', 'grip:open', or "
-        "'skill:home_harness_rest_ceiling_cam' (repeatable). Omit for read-only.",
+        "'skill:home' (repeatable). Omit for read-only.",
     )
     ap.add_argument(
         "--require-tool",

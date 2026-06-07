@@ -1,0 +1,38 @@
+{
+  "name": "drop_at_4",
+  "kind": "place",
+  "description": "Carry to paper_pos_4 (composed ref), open to drop, lift clear.",
+  "notes": "Composed: references paper_pos. Lift-away avoids knocking the cube on return.",
+  "steps": [
+    {
+      "tool": "skill",
+      "args": {
+        "name": "paper_pos_4"
+      }
+    },
+    {
+      "tool": "set_gripper",
+      "args": {
+        "position": 60
+      }
+    },
+    {
+      "tool": "move_relative",
+      "args": {
+        "delta": {
+          "shoulder_lift.pos": -18,
+          "elbow_flex.pos": 18,
+          "wrist_flex.pos": -28
+        },
+        "tolerance": 1.5,
+        "timeout": 3.0
+      }
+    },
+    {
+      "tool": "wait_until_settled",
+      "args": {
+        "timeout": 0.8
+      }
+    }
+  ]
+}

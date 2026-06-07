@@ -1,6 +1,6 @@
-# Cygnus 🦢
+# ReflexOS 🦢
 
-**An antifragile control layer for robot arms — robots that get *stronger* from rare failures.**
+**An AI-native training layer for robot workers — agents that make robots cheaper to teach, adapt, and redeploy.**
 
 Built for the **EuroTech × Hong Kong Talent Engage Hackathon** (Munich, June 2026) · **AI & Robotics** track.
 
@@ -8,40 +8,66 @@ Built for the **EuroTech × Hong Kong Talent Engage Hackathon** (Munich, June 20
 
 ## The idea
 
-Most autonomous robots are *fragile*: they run beautifully on the happy path and
-fail catastrophically the first time reality hands them something they've never
-seen — an object in an unexpected spot, a missed grasp, a stalled joint. Those
-rare, high-impact, unforeseen events are **black swans**.
+Training robots for new tasks is still slow, expensive, and human-dependent.
+Companies usually need human teleoperation, leader-follower demonstrations,
+simulation datasets, or repeated engineering correction to adapt a robot to each
+new workflow and environment.
 
-Cygnus makes a robot arm **antifragile** — it doesn't just survive black swans,
-it gets *better* from them:
+ReflexOS makes robot training **agent-native**. It turns a robot arm into an MCP
+server so an AI agent can observe the robot, understand its joints and safe
+motions, test possible actions, correct failures, and save successful routines as
+reusable reflexes. The goal is to make robotics more accessible: companies should
+be able to connect existing robots and machinery to AI, instead of replacing
+assets worth millions just to enter the AI era.
 
-1. **System 1 (fast reflex):** routine motions run instantly as validated,
-   previously-learned action sequences. No reasoning, no latency.
-2. **Black-swan detector:** watches the arm's state and camera — empty gripper
-   after a close, a stalled joint, an object where nothing should be, low
-   confidence. A *rare failure* fires.
-3. **System 2 (deliberation):** a reasoning model looks at the scene, figures out
-   a recovery, and — crucially — **records *why*** it did what it did.
-4. **Compounding:** the validated recovery is stored as reusable memory. The
-   **next** time that swan appears, it's handled instantly as a System-1 reflex.
+The learning loop:
 
-The demo metric is the **antifragility curve**: recovery time and repeat-failure
-rate fall over episodes. The robot literally improves from disorder.
+1. **Expose the robot as tools:** camera, state, joints, gripper, Cartesian moves,
+   safety limits, and saved skills become MCP tools.
+2. **Give the agent a workflow:** pick, place, sort, inspect, recover, or train a
+   new routine.
+3. **Let the agent operate and evaluate:** the agent attempts the task, observes
+   success or failure, and reasons about corrections.
+4. **Save successful behavior:** validated trajectories become reusable robot
+   skills/reflexes.
+5. **Reduce adaptation cost:** the next similar workflow can run faster with less
+   human demonstration and less engineering intervention.
 
-> This dual-process loop (fast reflex ↔ slow deliberation, with a learning bridge
-> between them) is inspired by how humans reserve scarce deliberate attention for
-> novelty and risk while running everything else on habit.
+Failure recovery is the first proof mechanism: when reality changes, ReflexOS
+detects the mismatch, escalates to reasoning, records the correction, and turns a
+former failure into a repeatable reflex. The demo metric is the training curve:
+time-to-task, human interventions, and repeat failures should fall over episodes.
+
+## Why it matters
+
+Robotics is already deployed at scale, but task adaptation remains a bottleneck.
+Companies have spent millions on robot arms, industrial machines, warehouses, and
+automation lines. ReflexOS is a bridge from that existing hardware base to the AI
+era: an agent can train, adapt, and improve machines through a common MCP tool
+interface.
+
+This enables:
+
+- **AI-supervised robot training:** the agent explores, tests, corrects, and saves
+  new routines.
+- **Accessible robotics:** smaller teams can teach robots without deep robotics
+  engineering for every workflow.
+- **Existing-machine upgrades:** companies can connect current robots/machinery
+  to AI instead of replacing them.
+- **Cross-robot skill transfer:** skills become agent-readable workflows, not only
+  fragile low-level trajectories.
+- **Synthetic-to-real correction:** the agent compares simulated plans with real
+  execution and records physical-world corrections.
 
 ---
 
 ## Architecture — the arm is an MCP server
 
-Cygnus turns the robot arm into a **[Model Context Protocol](https://modelcontextprotocol.io)
+ReflexOS turns the robot arm into a **[Model Context Protocol](https://modelcontextprotocol.io)
 (MCP) server**: its body is exposed as a surface of **safe primitives** (perceive,
 move in joint- or task-space, grip) plus **saved skills** (validated, replayable
 tool-call sequences). Any MCP-speaking agent can then *operate* the arm the same
-way it would use any other tool — and reason, recover, and learn through a
+way it would use any other tool — and train, correct, and learn through a
 **pluggable cognitive backend**.
 
 ```
@@ -52,8 +78,8 @@ way it would use any other tool — and reason, recover, and learn through a
                                                 │  MCP
                                                 ▼
                           AGENT  +  COGNITIVE BACKEND
-                          • reasoning model (System 2) — reasons over the camera frame
-                          • memory / rationale — recall fixes, record why, learn
+                          • reasoning model — plans over the camera frame + robot schema
+                          • memory / rationale — store skills, corrections, and outcomes
 ```
 
 The boundary is deliberate: the LLM **plans** by composing vetted primitives and
@@ -69,9 +95,9 @@ is clamped to joint/workspace limits regardless of what the caller asks for.
 - **`HostedBackend`** — connects to a hosted cognitive kernel over MCP
   (durable memory, decision rationale, learned skills) for the "production" path.
 
-Swapping backends is one flag — which is also the antifragile insurance: a flaky
-venue network can never freeze the arm, because System 1 and the local backend
-keep working.
+Swapping backends is one flag. A local backend can keep training and replaying
+skills even if venue networking is unreliable; a hosted backend can add durable
+memory, rationale, fleet learning, and cross-robot skill transfer.
 
 ### One rule: the dual-process boundary is the latency boundary
 
@@ -86,17 +112,17 @@ writes** are allowed to be slow.
 - **[SO-101](https://github.com/TheRobotStudio/SO-ARM100)** open-source arm
   (leader + follower pair), driven by **[Hugging Face LeRobot](https://github.com/huggingface/lerobot)**.
 - A **USB-C OpenCV/UVC camera** for vision (`look`). The camera is a separate
-  USB device from the Feetech motion bus; Cygnus unifies both behind one MCP
-  server. *(Note: Intel RealSense is not supported on macOS — Cygnus uses
+  USB device from the Feetech motion bus; ReflexOS unifies both behind one MCP
+  server. *(Note: Intel RealSense is not supported on macOS — ReflexOS uses
   OpenCV/USB cameras and needs no dataset recording for the core demo, so it
   runs on a Mac.)*
 - **⚠️ Power:** Leader = **5V**, Follower = **12V**. Wrong voltage permanently
   damages the servos — always verify before powering on.
 
-No model training is required for the core demo: the reasoning model drives the
-arm via the MCP tools, and System-1 "reflexes" are recalled tool-call sequences.
-(Training a fast policy like ACT/SmolVLA is an optional upgrade for smoother
-motion.)
+No robot-policy training is required for the core demo: the reasoning model
+trains the workflow by operating the arm through MCP tools, and fast "reflexes"
+are recalled tool-call sequences. Training a fast policy like ACT/SmolVLA is an
+optional upgrade once enough successful trajectories have been collected.
 
 ---
 
@@ -109,8 +135,8 @@ uv pip install 'lerobot[feetech]' mcp openai
 
 # brew install ffmpeg   # macOS, if not already present
 
-# Try the whole antifragility loop in simulation — no hardware, no API key:
-python -m cygnus demo
+# Try the agent-training loop in simulation — no hardware, no API key:
+python -m reflexos demo
 ```
 
 See **[PLAN.md](./PLAN.md)** for the full build plan and phases.
@@ -119,11 +145,12 @@ See **[PLAN.md](./PLAN.md)** for the full build plan and phases.
 
 ## Running the robot
 
-The robot's body is exposed as an **MCP server** (`cygnus.server`). A reasoning
-agent (Codex, Claude, or a hosted tedi) connects over MCP and operates the arm by
-composing these primitives and recalling saved skills. Safety limits are enforced
-on every motion regardless of the caller, and actuation tools are annotated as
-physical-world/destructive actions so compatible clients can gate them.
+The robot's body is exposed as an **MCP server** (`reflexos.server`). A reasoning
+agent (Codex, Claude, or a hosted tedi) connects over MCP and trains/operates the
+arm by composing primitives, evaluating outcomes, and recalling saved skills.
+Safety limits are enforced on every motion regardless of the caller, and
+actuation tools are annotated as physical-world/destructive actions so compatible
+clients can gate them.
 
 **Perception** — see the body and the scene:
 
@@ -184,7 +211,7 @@ never relax a limit):
   range; unknown/typo'd joint keys are dropped, never forwarded to the bus.
 - **Workspace bounds + `check_ee_target`**: Cartesian targets must stay inside the
   base-frame box (default `x 0.08–0.46`, `y ±0.28`, `z −0.10–0.38` m); single EE
-  steps are capped (`CYGNUS_MAX_STEP_M`, default `0.05` m).
+  steps are capped (`REFLEXOS_MAX_STEP_M`, default `0.05` m).
 - **Motion lock**: one process-wide actuation lock serializes motion across
   concurrent clients (Claude + Codex + tedis share one arm) — callers wait, then
   fail closed with `MotionBusy` rather than interleaving motor commands.
@@ -195,11 +222,13 @@ never relax a limit):
 Skills are saved tool-call sequences under `skills/*.json`, replayable with
 `run_skill`. The headline set is **7 taught poses captured by kinesthetic teaching**
 (`relax` → hand-pose the claw → `save_skill`, via `scripts/capture_pose.py`):
-`paper_pos_1`..`paper_pos_6` (six paper drop/pick positions) and `home_v2` (an
-alternate taught rest pose). On replay they land within roughly **1°** of the
-taught target. Plus `grab`/`release` (close/open the jaw), the `gripper_*` and
-`clearance_*` primitives, Cartesian nudges (`ee_x_plus_1cm`, …), and end-to-end
-demo skills (`home_reach_grab_home_demo`, `survey_blocks`, …).
+`paper_pos_1`..`paper_pos_6` (six paper drop/pick positions) and `home` (the single
+canonical rest pose). On replay they land within roughly **1°** of the taught
+target. Skills are **tagged by `kind`** (position / pick / place / primitive / home
+/ perception / demo) and **composable** — `grab_at_N`/`drop_at_N` reference
+`paper_pos_N`, so re-teaching a position propagates everywhere. Plus `grab`/`release`
+(close/open the jaw) and demo skills (`home_reach_grab_home_demo`, `survey_blocks`).
+Early learning-phase probes are archived under `skills/_archive/`.
 
 > The full motion vocabulary — joint directions, the FK/IK layers, calibration,
 > and validated grab routes — lives in **[docs/MOTIONS.md](./docs/MOTIONS.md)**.
@@ -211,15 +240,16 @@ demo skills (`home_reach_grab_home_demo`, `survey_blocks`, …).
 
 **You only need the follower** (the executor — the arm with the gripper). The
 leader is a hand-puppet for teleoperation and for recording ACT/SmolVLA training
-demos; Cygnus drives the follower directly via the MCP tools and trains nothing,
-so the leader is unused. One arm, one 12V supply, one USB-C — no 5V/12V mix-up.
+demos. ReflexOS does not require the leader for the core agent-training loop: the
+AI agent drives the follower directly through MCP tools, tests workflows, and
+saves successful routines. One arm, one 12V supply, one USB-C — no 5V/12V mix-up.
 
 Validate the two USB devices separately first:
 
 ```bash
 lerobot-find-port      # motion board: plug in USB-C + 12V power → note the follower port
 lerobot-find-cameras opencv   # camera: enumerate OpenCV devices → note the robot camera index
-lerobot-calibrate --robot.type=so101_follower --robot.port=<FOLLOWER_PORT> --robot.id=cygnus_follower
+lerobot-calibrate --robot.type=so101_follower --robot.port=<FOLLOWER_PORT> --robot.id=reflexos_follower
 ```
 
 The camera is already connected by USB-C; `look` uses the OpenCV index selected
@@ -237,22 +267,22 @@ terminal** so the wrist camera (index `0`) initializes:
 bash scripts/run_robot.sh
 ```
 
-It starts `cygnus.server` on the `so101` backend with the wrist camera (index 0)
+It starts `reflexos.server` on the `so101` backend with the wrist camera (index 0)
 and an optional scene camera (index 1), serves streamable HTTP on
 `127.0.0.1:8000`, pulls the `server` / `robot` / `kinematics` extras (mcp +
 lerobot + placo), and mirrors logs to `outputs/server.log`. Override with
-`CYGNUS_PORT`, `CYGNUS_CAMERA` (`-1` = motion-only), `CYGNUS_SCENE_CAMERA`,
-`CYGNUS_HTTP_PORT`.
+`REFLEXOS_PORT`, `REFLEXOS_CAMERA` (`-1` = motion-only), `REFLEXOS_SCENE_CAMERA`,
+`REFLEXOS_HTTP_PORT`.
 
 To run it by hand and pick the transport by where the controlling agent runs:
 
 ```bash
 # (a) Agent runs on THIS laptop → stdio (the client spawns the server):
-python -m cygnus.server --backend so101 --port <FOLLOWER_PORT> --id cygnus_follower \
+python -m reflexos.server --backend so101 --port <FOLLOWER_PORT> --id reflexos_follower \
     --camera-index <ROBOT_CAMERA_INDEX> --transport stdio
 
 # (b) A REMOTE agent must reach the arm (e.g. a hosted brain) → streamable HTTP:
-python -m cygnus.server --backend so101 --port <FOLLOWER_PORT> --id cygnus_follower \
+python -m reflexos.server --backend so101 --port <FOLLOWER_PORT> --id reflexos_follower \
     --camera-index <ROBOT_CAMERA_INDEX> --transport http --host 0.0.0.0 --http-port 8000
 ```
 
@@ -268,17 +298,17 @@ The SO-101 serial port has a **single owner** — only one process can hold it.
 So when more than one client should drive the arm, run **one** HTTP server (it
 owns the serial bus and the camera) and point every client at it. Do **not**
 register the arm as a `stdio` server in two clients: each would spawn its own
-`cygnus.server`, and they'd collide on the port.
+`reflexos.server`, and they'd collide on the port.
 
 ```bash
 # 1. ONE server, launched from a camera-authorized terminal so --camera-index 0 works.
 #    (If the launching app lacks camera permission, use --camera-index -1 = motion-only.)
-python -m cygnus.server --backend so101 --port <FOLLOWER_PORT> --id cygnus_follower \
+python -m reflexos.server --backend so101 --port <FOLLOWER_PORT> --id reflexos_follower \
     --camera-index 0 --transport http --host 127.0.0.1 --http-port 8000
 
 # 2. Register the same URL with each client:
-claude mcp add --transport http cygnus-robot http://127.0.0.1:8000/mcp
-codex  mcp add cygnus-robot --url http://127.0.0.1:8000/mcp
+claude mcp add --transport http reflexos-robot http://127.0.0.1:8000/mcp
+codex  mcp add reflexos-robot --url http://127.0.0.1:8000/mcp
 ```
 
 Because the *server* process holds the camera, `look` returns images to **every**
@@ -294,13 +324,13 @@ save it with `scripts/capture_pose.py` (`relax-off` → hand-pose → `capture <
   silent bus = power or servo-chain cabling, not software.
 - **The wrist camera read-thread can go stale.** The so101 backend falls back to
   joint-only state when a frame stalls, so `get_state` keeps working.
-- **The cloudflared tunnel (`cygnus.tedi.studio`) is flaky** — local agents should
+- **The cloudflared tunnel (`reflexos.tedi.studio`) is flaky** — local agents should
   use `localhost`, not the public URL.
 - **Servo Acceleration defaults to `254`** (snappy/jerky); `set_speed` lowers it
   for smooth motion.
 - **`gripper.pos` is a percentage, not cm**: `~15` = closed, `~60` = open.
-- **`poses.HOME` is the canonical harness-rest pose** (`home` tool); `home_v2` is
-  an alternate live-taught rest pose kept as a skill.
+- **`poses.HOME` is the single canonical harness-rest pose** — arm-only (no gripper)
+  so homing never drops a carried object; the `home` tool and `home` skill share it.
 - **The wrist camera is mounted rotated ~90°** — never reason left/right from the
   raw wrist frame; use the scene camera or Cartesian control.
 
@@ -363,7 +393,7 @@ can be whatever language it already is.
 0.5.1, the MCP SDK, and the OpenAI SDK.
 
 **Working now:**
-- Robot **MCP server** (`cygnus.server`) driving a **real SO-101 follower**, over
+- Robot **MCP server** (`reflexos.server`) driving a **real SO-101 follower**, over
   **stdio or streamable HTTP**. Full tool surface: perception
   (`look`/`get_state`/`get_robot_model`/`get_joint_effects`/`detect_colored_blocks`),
   Cartesian FK/IK (`get_ee_pose`/`move_ee_to`/`move_ee_by`, placo + bundled URDF),
@@ -374,14 +404,14 @@ can be whatever language it already is.
 - `SimBackend ⇄ SO101Backend` (one flag) + immutable safety guardrails (joint
   clamp, workspace bounds, motion lock for concurrent clients).
 - **Skills library** including 7 kinesthetically-taught poses (`paper_pos_1`..`6`
-  + `home_v2`), `grab`/`release`, and demo routines — validated to land within
+  + `home`), `grab`/`release`, and demo routines — validated to land within
   ~1° of target on replay.
-- Self-contained `LocalBackend` cognition + the **antifragility loop** end-to-end
-  in sim (`python -m cygnus demo`), with a passing test suite proving novel
-  failures escalate once then become fast reflexes.
+- Self-contained `LocalBackend` cognition + the **agent-training loop** end-to-end
+  in sim (`python -m reflexos demo`), with a passing test suite proving novel
+  failures escalate once, get corrected, and become fast reflexes.
 
 **Next:** wire the hosted (tedi) cognitive path end-to-end on the real arm;
-antifragility dashboard.
+training dashboard, cross-robot skill transfer, and synthetic-to-real correction.
 
 ## License
 

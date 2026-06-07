@@ -1,17 +1,17 @@
 # Skill: paper_pos_6
 
-> Go to taught position 'paper_pos_6'.
+> Go to taught arm position 6 (original calibrated pose).
 
-**Type:** robot motion skill (recorded tool-call sequence) · **Steps:** 1
+**Kind:** position · **Type:** recorded tool-call sequence · **Steps:** 1
 
 ## When to use
 
-Captured by kinesthetic teaching (relax → hand-pose → lock).
+Reverted to original taught pose; lateral shifts hurt grabbing. Use adaptive_grab for misplacement.
 
 ## Procedure (recorded tool calls)
 
-1. `move_to` → shoulder_pan=30.1, shoulder_lift=9.5, elbow_flex=31.2, wrist_flex=67.9, wrist_roll=-70.7, gripper=17.5
+1. `move_to` → shoulder_pan=30.1, shoulder_lift=9.5, elbow_flex=31.2, wrist_flex=67.9, wrist_roll=-70.7
 
 ## Caveats
 
-Open-loop replay: valid only while the target is in the recorded position. If the object has moved, replay will miss the grasp — re-teach the skill (the black-swan → re-learn loop that makes the system antifragile).
+Open-loop replay: valid only while the target is in the recorded position. If the object has moved, replay may miss the grasp — use the agent-training loop to correct and save an updated routine.

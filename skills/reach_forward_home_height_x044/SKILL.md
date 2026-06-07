@@ -2,7 +2,7 @@
 
 > Coordinated shoulder/elbow/wrist near-full forward reach to the x≈0.44 m home-height envelope.
 
-**Type:** robot motion skill (recorded tool-call sequence) · **Steps:** 1
+**Kind:** primitive · **Type:** recorded tool-call sequence · **Steps:** 1
 
 ## When to use
 
@@ -14,4 +14,4 @@ Validated 2026-06-06: moved FK x from 0.423 m to 0.443 m. Elbow lagged by ~2.8 d
 
 ## Caveats
 
-Open-loop replay: valid only while the target is in the recorded position. If the object has moved, replay will miss the grasp — re-teach the skill (the black-swan → re-learn loop that makes the system antifragile).
+Open-loop replay: valid only while the target is in the recorded position. If the object has moved, replay may miss the grasp — use the agent-training loop to correct and save an updated routine.

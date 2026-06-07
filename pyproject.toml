@@ -3,14 +3,14 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "cygnus"
+name = "reflexos"
 version = "0.1.0"
-description = "Antifragile control layer for robot arms — robots that get stronger from rare failures."
+description = "AI-native training layer for robot workers — agents that make robots cheaper to teach, adapt, and redeploy."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [{ name = "Aaron Koivunen" }]
-# Core (sim + the antifragility demo) needs nothing beyond the stdlib.
+# Core (sim + the agent-training demo) needs nothing beyond the stdlib.
 dependencies = []
 
 [project.optional-dependencies]
@@ -30,10 +30,10 @@ dev = [
 ]      # placo so the kinematics test runs in CI
 
 [project.scripts]
-cygnus = "cygnus.__main__:main"
+reflexos = "reflexos.__main__:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["cygnus"]
+packages = ["reflexos"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

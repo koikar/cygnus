@@ -1,18 +1,18 @@
 {
   "name": "paper_pos_3",
-  "description": "Go to taught position 'paper_pos_3'.",
-  "notes": "Captured by kinesthetic teaching (relax \u2192 hand-pose \u2192 lock).",
+  "kind": "position",
+  "description": "Go to taught arm position 3 (original calibrated pose).",
+  "notes": "Reverted to original taught pose; lateral shifts hurt grabbing. Use adaptive_grab for misplacement.",
   "steps": [
     {
       "tool": "move_to",
       "args": {
         "target": {
-          "shoulder_pan.pos": -16.791208791208792,
-          "shoulder_lift.pos": 55.956043956043956,
+          "shoulder_pan.pos": -16.8,
+          "shoulder_lift.pos": 56.0,
           "elbow_flex.pos": -44.0,
-          "wrist_flex.pos": 91.25274725274726,
-          "wrist_roll.pos": -123.73626373626374,
-          "gripper.pos": 17.52136752136752
+          "wrist_flex.pos": 91.3,
+          "wrist_roll.pos": -123.7
         }
       }
     }

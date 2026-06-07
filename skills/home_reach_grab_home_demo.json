@@ -1,5 +1,6 @@
 {
   "name": "home_reach_grab_home_demo",
+  "kind": "demo",
   "description": "Validated demo route: harness-rest home, stretch forward, move to flex-down tabletop grab pose, close/open gripper, return home.",
   "notes": "Run only with the current tabletop layout clear. Home camera points at ceiling; grab uses wrist_flex, not wrist_roll.",
   "steps": [
@@ -7,12 +8,11 @@
       "tool": "move_to",
       "args": {
         "target": {
-          "shoulder_pan.pos": 0.0,
-          "shoulder_lift.pos": -45.0,
-          "elbow_flex.pos": 95.0,
-          "wrist_flex.pos": -70.0,
-          "wrist_roll.pos": 0.0,
-          "gripper.pos": 60.0
+          "shoulder_pan.pos": 3.1,
+          "shoulder_lift.pos": -99.5,
+          "elbow_flex.pos": 96.7,
+          "wrist_flex.pos": 16.2,
+          "wrist_roll.pos": -96.8
         },
         "timeout": 7.0,
         "tolerance": 2.0
@@ -68,12 +68,11 @@
       "tool": "move_to",
       "args": {
         "target": {
-          "shoulder_pan.pos": 0.0,
-          "shoulder_lift.pos": -45.0,
-          "elbow_flex.pos": 95.0,
-          "wrist_flex.pos": -70.0,
-          "wrist_roll.pos": 0.0,
-          "gripper.pos": 60.0
+          "shoulder_pan.pos": 3.1,
+          "shoulder_lift.pos": -99.5,
+          "elbow_flex.pos": 96.7,
+          "wrist_flex.pos": 16.2,
+          "wrist_roll.pos": -96.8
         },
         "timeout": 7.0,
         "tolerance": 2.0

@@ -1,0 +1,20 @@
+{
+  "name": "bucket",
+  "kind": "position",
+  "description": "Go to the taught bucket drop position (claw positioned over the bucket opening).",
+  "notes": "Captured by kinesthetic teaching (relax -> hand-pose -> lock). Arm-only so it preserves the gripper while carrying.",
+  "steps": [
+    {
+      "tool": "move_to",
+      "args": {
+        "target": {
+          "shoulder_pan.pos": -76.9,
+          "shoulder_lift.pos": -22.6,
+          "elbow_flex.pos": 90,
+          "wrist_flex.pos": -55.8,
+          "wrist_roll.pos": -97.1
+        }
+      }
+    }
+  ]
+}

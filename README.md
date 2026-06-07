@@ -141,6 +141,22 @@ python -m reflexos demo
 
 See **[PLAN.md](./PLAN.md)** for the full build plan and phases.
 
+For hackathon judging transparency, see **[HONESTY.md](./HONESTY.md)**. It lists
+what was built in this repo, what is external, what is functional, and what is
+mocked or future work.
+
+## Repo map
+
+| Path | Purpose |
+| --- | --- |
+| `reflexos/` | Python robot/MCP package: server, backends, controller, safety, cognition, skills, perception, calibration, kinematics. |
+| `skills/` | Saved robot skill JSON files and skill descriptions. |
+| `scripts/` | Robot launcher, smoke test, pose capture, and demo helper scripts. |
+| `tests/` | Local tests for training-loop behavior, safety, calibration, motion locking, kinematics, and skill audit. |
+| `docs/` | Motion vocabulary and live hardware findings. |
+| `website/` | Public/product website for the business pitch. |
+| `live-robot-demo/` | Mock-first mission-control UI for explaining the learning loop. |
+
 ---
 
 ## Running the robot

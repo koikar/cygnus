@@ -7,11 +7,26 @@ __pycache__/
 .eggs/
 build/
 dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
 # Env / secrets
 .env
 .env.*
 *.local
+
+# Frontend
+node_modules/
+.next/
+.vite/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 # LeRobot / data
 data/
